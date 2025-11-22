@@ -15,8 +15,8 @@ class PeerMultiplayerManager {
     async initialize() {
         return new Promise((resolve, reject) => {
             try {
-                // Создаем peer с коротким кодом (3 символа)
-                const customId = 'chess-' + Math.random().toString(36).substr(2, 3).toUpperCase();
+                // Создаем peer с коротким кодом из 3 цифр
+                const customId = 'chess-' + Math.floor(Math.random() * 900 + 100);
                 this.peer = new Peer(customId);
 
                 this.peer.on('open', (id) => {
