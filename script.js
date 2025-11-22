@@ -451,8 +451,13 @@ async function createMatch() {
             console.log('globalChessRooms после создания:', rooms);
             
             hideCreateModal();
+            
+            // Обновляем список комнат немедленно
+            await updateGamesList();
+            console.log('Список обновлён после создания комнаты');
+            
+            // Показываем модальное окно ожидания
             showWaitingModal(result);
-            showGame();
             
             console.log('=== createMatch END (success) ===');
         } catch (error) {
