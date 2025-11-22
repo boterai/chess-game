@@ -426,6 +426,11 @@ footer {
     gap: 5px;
 }
 
+.game-actions {
+    display: flex;
+    gap: 10px;
+}
+
 .game-name {
     font-size: 1.2em;
     font-weight: bold;
@@ -447,6 +452,17 @@ footer {
 
 .btn-small:hover {
     background: rgba(0, 212, 255, 0.2);
+}
+
+.btn-danger {
+    background: transparent;
+    color: #ff4444;
+    border: 2px solid #ff4444;
+}
+
+.btn-danger:hover {
+    background: rgba(255, 68, 68, 0.2);
+    box-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
 }
 
 .editor-section h2 {
