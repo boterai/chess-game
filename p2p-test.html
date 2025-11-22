@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Глобальный синхронизованный квадрат</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body {
             margin: 0;
@@ -91,7 +90,7 @@
 
     <div class="info">
         <p>Кликайте на квадрат - изменения синхронизируются между ВСЕМИ устройствами!</p>
-        <p><small>Работает через PeerJS с публичным сервером</small></p>
+        <p><small>Работает через Server-Sent Events</small></p>
     </div>
 
     <div id="square" onclick="toggleSquare()">
@@ -102,9 +101,10 @@
 
     <script>
         let isGreen = false;
-        let peer = null;
-        let connections = [];
-        const ROOM_ID = 'chess-sync-' + new Date().toISOString().split('T')[0]; // Комната на день
+        let eventSource = null;
+        
+        // ЗАМЕНИТЕ НА ВАШ URL С GLITCH!
+        const SERVER_URL = 'https://YOUR-PROJECT.glitch.me';
 
         function log(message) {
             const logDiv = document.getElementById('log');
@@ -116,114 +116,60 @@
             console.log(message);
         }
 
-        function initPeer() {
-            // Каждое устройство получает уникальный ID
-            const myId = 'user-' + Math.random().toString(36).substr(2, 9);
-            
-            peer = new Peer(myId, {
-                debug: 1
-            });
-
-            peer.on('open', (id) => {
-                log('✅ Подключено ID: ' + id);
-                document.getElementById('status').textContent = 'Подключено ✅';
-                document.getElementById('status').style.borderColor = '#0f0';
+        async function connectToServer() {
+            try {
+                log('🔄 Подключение к серверу...');
                 
-                // Начинаем периодически искать других пользователей
-                startDiscovery();
-            });
-
-            peer.on('connection', (conn) => {
-                log('📥 Входящее подключение от ' + conn.peer);
-                setupConnection(conn);
-            });
-
-            peer.on('error', (err) => {
-                log('❌ Ошибка: ' + err.message);
-                if (err.type !== 'peer-unavailable') {
-                    document.getElementById('status').textContent = 'Ошибка подключения';
-                    document.getElementById('status').style.borderColor = '#f00';
-                }
-            });
-        }
-
-        let discoveryAttempts = 0;
-        function startDiscovery() {
-            // Пытаемся подключиться к другим пользователям
-            const baseId = 'user-';
-            
-            setInterval(() => {
-                discoveryAttempts++;
-                const targetId = ROOM_ID + '-peer-' + discoveryAttempts;
+                // Загружаем начальное состояние
+                const response = await fetch(SERVER_URL + '/state');
+                const data = await response.json();
+                isGreen = data.isGreen;
+                updateSquare(false);
                 
-                // Пробуем подключиться
-                const conn = peer.connect(targetId);
+                // Подключаемся к Server-Sent Events
+                eventSource = new EventSource(SERVER_URL + '/events');
                 
-                conn.on('open', () => {
-                    log('✅ Найден пир: ' + targetId);
-                    setupConnection(conn);
-                    // Запрашиваем текущее состояние
-                    conn.send({ type: 'request-state' });
-                });
-                
-                conn.on('error', () => {
-                    // Пир не найден - это нормально
-                });
-            }, 3000); // Каждые 3 секунды ищем новых пиров
-            
-            log('🔍 Поиск других устройств...');
-        }
-
-        function setupConnection(conn) {
-            // Проверяем, не подключены ли мы уже к этому пиру
-            if (connections.find(c => c.peer === conn.peer)) {
-                return;
-            }
-            
-            connections.push(conn);
-            log('🔗 Подключений: ' + connections.length);
-
-            conn.on('data', (data) => {
-                if (data.type === 'state') {
+                eventSource.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
                     if (data.isGreen !== isGreen) {
                         isGreen = data.isGreen;
                         updateSquare(false);
-                        log('📥 Получено обновление: ' + (isGreen ? 'зелёный' : 'красный'));
-                        // Пересылаем другим
-                        broadcastState(conn.peer);
+                        log('📥 Обновление с сервера: ' + (isGreen ? 'зелёный' : 'красный'));
                     }
-                } else if (data.type === 'request-state') {
-                    // Отправляем текущее состояние
-                    conn.send({ type: 'state', isGreen: isGreen });
-                }
-            });
-
-            conn.on('close', () => {
-                connections = connections.filter(c => c !== conn);
-                log('📤 Отключение. Осталось: ' + connections.length);
-            });
-        }
-
-        function broadcastState(excludePeer = null) {
-            const data = { type: 'state', isGreen: isGreen };
-            let sent = 0;
-            
-            connections.forEach(conn => {
-                if (conn.open && conn.peer !== excludePeer) {
-                    conn.send(data);
-                    sent++;
-                }
-            });
-            
-            if (sent > 0) {
-                log('📤 Отправлено ' + sent + ' устройствам');
+                };
+                
+                eventSource.onerror = () => {
+                    log('❌ Потеряно соединение с сервером');
+                    document.getElementById('status').textContent = 'Переподключение...';
+                    document.getElementById('status').style.borderColor = '#ff0';
+                };
+                
+                document.getElementById('status').textContent = 'Подключено ✅';
+                document.getElementById('status').style.borderColor = '#0f0';
+                log('✅ Подключено к серверу');
+                
+            } catch (error) {
+                log('❌ Ошибка подключения: ' + error.message);
+                document.getElementById('status').textContent = 'Ошибка подключения';
+                document.getElementById('status').style.borderColor = '#f00';
             }
         }
 
-        function toggleSquare() {
+        async function toggleSquare() {
             isGreen = !isGreen;
             updateSquare(true);
-            broadcastState();
+            
+            try {
+                // Отправляем на сервер для broadcast всем
+                await fetch(SERVER_URL + '/broadcast', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ isGreen: isGreen })
+                });
+                log('📤 Отправлено на сервер');
+            } catch (error) {
+                log('❌ Ошибка отправки: ' + error.message);
+            }
         }
 
         function updateSquare(notify = true) {
@@ -238,7 +184,14 @@
 
         window.addEventListener('load', () => {
             log('🚀 Страница загружена');
-            initPeer();
+            
+            if (SERVER_URL.includes('YOUR-PROJECT')) {
+                log('⚠️ НУЖНО УКАЗАТЬ URL СЕРВЕРА В КОДЕ!');
+                document.getElementById('status').textContent = 'Нужен URL сервера';
+                document.getElementById('status').style.borderColor = '#f00';
+            } else {
+                connectToServer();
+            }
         });
     </script>
 </body>
