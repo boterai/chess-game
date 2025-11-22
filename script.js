@@ -551,20 +551,24 @@ function loadMatch(matchId) {
 }
 
 function deleteMatch(matchId) {
-    console.log('deleteMatch вызвана с ID:', matchId);
-    if (matchId.startsWith('online_')) {
+    console.log('deleteMatch вызвана с ID:', matchId, 'тип:', typeof matchId);
+    
+    // Преобразуем в строку для проверки
+    const matchIdStr = String(matchId);
+    
+    if (matchIdStr.startsWith('online_')) {
         // Удаление онлайн-комнаты из локального списка
-        const roomCode = matchId.replace('online_', '');
+        const roomCode = matchIdStr.replace('online_', '');
         const savedRooms = JSON.parse(localStorage.getItem('myOnlineRooms') || '[]');
         const filtered = savedRooms.filter(r => r.roomCode !== roomCode);
         localStorage.setItem('myOnlineRooms', JSON.stringify(filtered));
         console.log('Онлайн-комната удалена:', roomCode);
     } else {
-        // Удаление локальной игры
+        // Удаление локальной игры - сравниваем как числа
         const matches = getMatches();
-        const filtered = matches.filter(m => m.id !== matchId);
+        const filtered = matches.filter(m => m.id != matchId); // Используем != для сравнения числа и строки
         localStorage.setItem('chessMatches', JSON.stringify(filtered));
-        console.log('Локальная игра удалена:', matchId);
+        console.log('Локальная игра удалена:', matchId, 'осталось:', filtered.length);
     }
     updateGamesList();
 }
