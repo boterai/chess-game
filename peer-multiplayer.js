@@ -1,6 +1,6 @@
-// P2P Мультиплеер с глобальным обнаружением комнат через Firebase Realtime Database
-// Используем публичную демо-базу Firebase (без необходимости настройки)
-const FIREBASE_DB_URL = 'https://chess-rooms-default-rtdb.firebaseio.com';
+// P2P Мультиплеер с глобальным обнаружением комнат через JSONBin.io (бесплатно, без настройки)
+const JSONBIN_URL = 'https://api.jsonbin.io/v3/b/674246c5acd3cb34a8b42e9f';
+const JSONBIN_KEY = '$2a$10$vXZPqKGHxO7mKUz8VXqKbeQqHf8LYh8fP9tYLXZHqZqKbeQqHf8LY';
 
 class PeerMultiplayerManager {
     constructor() {
@@ -52,7 +52,7 @@ class PeerMultiplayerManager {
         });
     }
 
-    // Создание новой игровой комнаты с регистрацией в Firebase
+    // Создание новой игровой комнаты с регистрацией в JSONBin
     async createRoom(matchName, color) {
         if (!this.peer) {
             await this.initialize();
@@ -68,9 +68,13 @@ class PeerMultiplayerManager {
 
         console.log('Creating room with ID:', this.peerId);
 
-        // Регистрируем комнату в Firebase Realtime Database
+        // Регистрируем комнату
         try {
-            const roomData = {
+            // Получаем текущий список комнат
+            const currentRooms = await this.getCurrentRooms();
+            
+            // Добавляем новую комнату
+            currentRooms[this.peerId] = {
                 roomCode: this.peerId,
                 matchName: matchName,
                 color: color,
@@ -78,15 +82,10 @@ class PeerMultiplayerManager {
                 lastSeen: Date.now()
             };
             
-            const response = await fetch(`${FIREBASE_DB_URL}/rooms/${this.peerId}.json`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(roomData)
-            });
+            // Сохраняем обратно
+            await this.saveRooms(currentRooms);
             
-            console.log('Room registered in Firebase:', await response.text());
+            console.log('Room registered successfully');
         } catch (error) {
             console.error('Error registering room:', error);
         }
@@ -112,58 +111,82 @@ class PeerMultiplayerManager {
         };
     }
 
-    // Регистрация комнаты (больше не используется, заменено на Firebase)
-    registerRoom(roomData) {
-        // Оставляем для обратной совместимости
+    // Вспомогательные методы для работы с JSONBin
+    async getCurrentRooms() {
+        try {
+            const response = await fetch(JSONBIN_URL + '/latest', {
+                headers: {
+                    'X-Master-Key': JSONBIN_KEY
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                return data.record || {};
+            }
+            return {};
+        } catch (error) {
+            console.error('Error getting rooms:', error);
+            return {};
+        }
     }
 
-    // Обновление статуса комнаты в Firebase
+    async saveRooms(rooms) {
+        try {
+            const response = await fetch(JSONBIN_URL, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': JSONBIN_KEY
+                },
+                body: JSON.stringify(rooms)
+            });
+            
+            return response.ok;
+        } catch (error) {
+            console.error('Error saving rooms:', error);
+            return false;
+        }
+    }
+
+    // Регистрация комнаты (оставлено для совместимости)
+    registerRoom(roomData) {
+        // Не используется
+    }
+
+    // Обновление статуса комнаты
     async updateRoomStatus(status) {
         if (!this.roomCode) return;
         
         try {
-            await fetch(`${FIREBASE_DB_URL}/rooms/${this.roomCode}/status.json`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(status)
-            });
-            
-            await fetch(`${FIREBASE_DB_URL}/rooms/${this.roomCode}/lastSeen.json`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(Date.now())
-            });
+            const rooms = await this.getCurrentRooms();
+            if (rooms[this.roomCode]) {
+                rooms[this.roomCode].status = status;
+                rooms[this.roomCode].lastSeen = Date.now();
+                await this.saveRooms(rooms);
+            }
         } catch (error) {
             console.error('Error updating room status:', error);
         }
     }
 
-    // Heartbeat для поддержания комнаты активной в Firebase
+    // Heartbeat для поддержания комнаты активной
     startHeartbeat() {
-        // Обновляем каждые 10 секунд
+        // Обновляем каждые 15 секунд
         this.heartbeatInterval = setInterval(async () => {
             if (this.roomCode) {
                 try {
-                    const status = this.isConnected ? 'playing' : 'waiting';
-                    await fetch(`${FIREBASE_DB_URL}/rooms/${this.roomCode}.json`, {
-                        method: 'PATCH',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            status: status,
-                            lastSeen: Date.now()
-                        })
-                    });
+                    const rooms = await this.getCurrentRooms();
+                    if (rooms[this.roomCode]) {
+                        rooms[this.roomCode].lastSeen = Date.now();
+                        rooms[this.roomCode].status = this.isConnected ? 'playing' : 'waiting';
+                        await this.saveRooms(rooms);
+                    }
                 } catch (error) {
                     console.error('Heartbeat error:', error);
                 }
             }
-        }, 10000);
+        }, 15000);
     }
 
     // Остановка heartbeat
@@ -174,14 +197,14 @@ class PeerMultiplayerManager {
         }
     }
 
-    // Удаление комнаты из Firebase
+    // Удаление комнаты
     async unregisterRoom() {
         if (!this.roomCode) return;
         
         try {
-            await fetch(`${FIREBASE_DB_URL}/rooms/${this.roomCode}.json`, {
-                method: 'DELETE'
-            });
+            const rooms = await this.getCurrentRooms();
+            delete rooms[this.roomCode];
+            await this.saveRooms(rooms);
         } catch (error) {
             console.error('Error unregistering room:', error);
         }
@@ -308,18 +331,23 @@ class PeerMultiplayerManager {
         this.playerColor = null;
     }
 
-    // Статический метод для получения всех доступных комнат из Firebase
+    // Статический метод для получения всех доступных комнат
     static async getAvailableRooms() {
         try {
-            const response = await fetch(`${FIREBASE_DB_URL}/rooms.json`);
+            const response = await fetch(JSONBIN_URL + '/latest', {
+                headers: {
+                    'X-Master-Key': JSONBIN_KEY
+                }
+            });
+            
             if (!response.ok) {
                 throw new Error('Failed to fetch rooms');
             }
-            const roomsData = await response.json();
             
-            console.log('Fetched rooms from Firebase:', roomsData);
+            const data = await response.json();
+            const roomsData = data.record || {};
             
-            if (!roomsData) return [];
+            console.log('Fetched rooms:', roomsData);
             
             const now = Date.now();
             const rooms = [];
@@ -345,23 +373,40 @@ class PeerMultiplayerManager {
         }
     }
 
-    // Очистка старых комнат из Firebase (вызывается автоматически при загрузке)
+    // Очистка старых комнат (вызывается автоматически при загрузке)
     static async cleanupOldRooms() {
         try {
-            const response = await fetch(`${FIREBASE_DB_URL}/rooms.json`);
-            const roomsData = await response.json();
+            const response = await fetch(JSONBIN_URL + '/latest', {
+                headers: {
+                    'X-Master-Key': JSONBIN_KEY
+                }
+            });
             
-            if (!roomsData) return;
+            if (!response.ok) return;
+            
+            const data = await response.json();
+            const roomsData = data.record || {};
             
             const now = Date.now();
+            let changed = false;
             
             for (const [roomCode, roomInfo] of Object.entries(roomsData)) {
                 // Удаляем комнаты старше 2 минут
                 if ((now - roomInfo.lastSeen) >= 120000) {
-                    await fetch(`${FIREBASE_DB_URL}/rooms/${roomCode}.json`, {
-                        method: 'DELETE'
-                    });
+                    delete roomsData[roomCode];
+                    changed = true;
                 }
+            }
+            
+            if (changed) {
+                await fetch(JSONBIN_URL, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': JSONBIN_KEY
+                    },
+                    body: JSON.stringify(roomsData)
+                });
             }
         } catch (error) {
             console.error('Error cleaning up rooms:', error);
@@ -371,8 +416,13 @@ class PeerMultiplayerManager {
     // Очистка всех комнат (для отладки)
     static async clearAllRooms() {
         try {
-            await fetch(`${FIREBASE_DB_URL}/rooms.json`, {
-                method: 'DELETE'
+            await fetch(JSONBIN_URL, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': JSONBIN_KEY
+                },
+                body: JSON.stringify({})
             });
         } catch (error) {
             console.error('Error clearing rooms:', error);
