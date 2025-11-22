@@ -71,6 +71,35 @@
             </div>
         </div>
 
+        <!-- Модальное окно создания матча -->
+        <div id="create-match-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <button class="close-btn modal-close">✕</button>
+                <h2>Создание нового матча</h2>
+                
+                <div class="form-group">
+                    <label for="match-name">Название матча:</label>
+                    <input type="text" id="match-name" class="form-input" placeholder="Введите название..." value="Партия #1">
+                </div>
+                
+                <div class="form-group">
+                    <label for="match-color">Цвет метки:</label>
+                    <div class="color-picker">
+                        <div class="color-option" data-color="#00d4ff" style="background: #00d4ff;"></div>
+                        <div class="color-option" data-color="#ff4444" style="background: #ff4444;"></div>
+                        <div class="color-option" data-color="#44ff44" style="background: #44ff44;"></div>
+                        <div class="color-option" data-color="#ffff44" style="background: #ffff44;"></div>
+                        <div class="color-option" data-color="#ff44ff" style="background: #ff44ff;"></div>
+                        <div class="color-option selected" data-color="#00d4ff" style="background: #00d4ff; border: 3px solid white;"></div>
+                    </div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button id="confirm-create" class="btn btn-primary btn-large">Создать матч</button>
+                </div>
+            </div>
+        </div>
+
         <main id="game-container" style="display: none;">
             <button id="back-to-menu" class="close-btn">✕</button>
             

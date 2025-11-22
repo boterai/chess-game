@@ -36,6 +36,7 @@ let selectedSquare = null;
 let moveHistory = [];
 let editorMode = false;
 let selectedPiece = null;
+let selectedColor = '#00d4ff';
 
 // Навигация
 function showMainMenu() {
@@ -225,7 +226,24 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('back-from-select').addEventListener('click', showMainMenu);
     
     // Кнопка создания игры
-    document.getElementById('create-game-btn').addEventListener('click', showGame);
+    document.getElementById('create-game-btn').addEventListener('click', showCreateModal);
+    
+    // Модальное окно
+    document.querySelector('.modal-close').addEventListener('click', hideCreateModal);
+    document.getElementById('confirm-create').addEventListener('click', createMatch);
+    
+    // Выбор цвета
+    document.querySelectorAll('.color-option').forEach(option => {
+        option.addEventListener('click', function() {
+            document.querySelectorAll('.color-option').forEach(opt => {
+                opt.classList.remove('selected');
+                opt.style.border = '3px solid transparent';
+            });
+            this.classList.add('selected');
+            this.style.border = '3px solid white';
+            selectedColor = this.dataset.color;
+        });
+    });
     
     // Кнопки продолжения игры
     document.querySelectorAll('.game-item button').forEach(btn => {
@@ -308,5 +326,21 @@ function saveAndPlay() {
     editorMode = false;
     selectedPiece = null;
     document.querySelectorAll('.piece-btn').forEach(b => b.classList.remove('selected'));
+    showGame();
+}
+
+// Модальное окно создания матча
+function showCreateModal() {
+    document.getElementById('create-match-modal').style.display = 'flex';
+}
+
+function hideCreateModal() {
+    document.getElementById('create-match-modal').style.display = 'none';
+}
+
+function createMatch() {
+    const matchName = document.getElementById('match-name').value || 'Партия #1';
+    console.log(`Создан матч: ${matchName}, Цвет: ${selectedColor}`);
+    hideCreateModal();
     showGame();
 }
