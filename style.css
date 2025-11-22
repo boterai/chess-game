@@ -13,9 +13,11 @@ body {
 
 .container {
     width: 100%;
-    height: 100vh;
+    min-height: 100vh;
     margin: 0;
     padding: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 header {
@@ -54,11 +56,8 @@ main {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 100vh;
-    width: 100vw;
-    position: fixed;
-    top: 0;
-    left: 0;
+    flex: 1;
+    width: 100%;
 }
 
 .menu-buttons {
@@ -67,16 +66,14 @@ main {
     gap: 30px;
     justify-content: center;
     align-items: center;
-    max-width: 500px;
-    width: 100%;
+    max-width: 400px;
+    width: 400px;
     margin: 0 auto;
 }
 
 .menu-btn {
-    width: 100%;
-    max-width: 500px;
-    min-height: 180px;
-    min-width: auto;
+    width: 400px;
+    height: 160px;
     padding: 40px 30px;
     background: transparent;
     color: #00d4ff;
@@ -85,6 +82,10 @@ main {
     cursor: pointer;
     transition: all 0.3s;
     box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
 .menu-btn:hover {
