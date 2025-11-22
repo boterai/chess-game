@@ -34,6 +34,30 @@ let board = JSON.parse(JSON.stringify(initialBoard));
 let currentPlayer = 'white';
 let selectedSquare = null;
 let moveHistory = [];
+let editorMode = false;
+let selectedPiece = null;
+
+// Навигация
+function showMainMenu() {
+    document.getElementById('main-menu').style.display = 'block';
+    document.getElementById('game-container').style.display = 'none';
+    document.getElementById('editor-container').style.display = 'none';
+}
+
+function showGame() {
+    document.getElementById('main-menu').style.display = 'none';
+    document.getElementById('game-container').style.display = 'block';
+    document.getElementById('editor-container').style.display = 'none';
+    initBoard();
+}
+
+function showEditor() {
+    document.getElementById('main-menu').style.display = 'none';
+    document.getElementById('game-container').style.display = 'none';
+    document.getElementById('editor-container').style.display = 'block';
+    editorMode = true;
+    initEditorBoard();
+}
 
 // Инициализация доски
 function initBoard() {
@@ -176,9 +200,81 @@ function resetGame() {
 
 // Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', () => {
-    initBoard();
-    updateDisplay();
+    // Кнопки главного меню
+    document.getElementById('play-btn').addEventListener('click', showGame);
+    document.getElementById('editor-btn').addEventListener('click', showEditor);
     
+    // Кнопки возврата
+    document.getElementById('back-to-menu').addEventListener('click', showMainMenu);
+    document.getElementById('back-from-editor').addEventListener('click', showMainMenu);
+    
+    // Кнопки игры
     document.getElementById('new-game').addEventListener('click', newGame);
     document.getElementById('reset-game').addEventListener('click', resetGame);
+    
+    // Кнопки редактора
+    document.getElementById('clear-board').addEventListener('click', clearEditorBoard);
+    document.getElementById('reset-to-default').addEventListener('click', resetToDefault);
+    document.getElementById('save-position').addEventListener('click', saveAndPlay);
+    
+    // Выбор фигур в редакторе
+    document.querySelectorAll('.piece-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.piece-btn').forEach(b => b.classList.remove('selected'));
+            e.target.classList.add('selected');
+            selectedPiece = e.target.dataset.piece;
+        });
+    });
+    
+    updateDisplay();
 });
+
+// Редактор карт
+function initEditorBoard() {
+    const editorBoard = document.getElementById('editor-board');
+    editorBoard.innerHTML = '';
+    editorBoard.className = 'chessboard';
+    
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            const square = document.createElement('div');
+            square.className = `square ${(row + col) % 2 === 0 ? 'light' : 'dark'}`;
+            square.dataset.row = row;
+            square.dataset.col = col;
+            square.textContent = board[row][col];
+            square.addEventListener('click', handleEditorClick);
+            editorBoard.appendChild(square);
+        }
+    }
+}
+
+function handleEditorClick(e) {
+    const row = parseInt(e.target.dataset.row);
+    const col = parseInt(e.target.dataset.col);
+    
+    if (selectedPiece) {
+        board[row][col] = selectedPiece;
+        initEditorBoard();
+    } else {
+        // Удаление фигуры
+        board[row][col] = '';
+        initEditorBoard();
+    }
+}
+
+function clearEditorBoard() {
+    board = Array(8).fill(null).map(() => Array(8).fill(''));
+    initEditorBoard();
+}
+
+function resetToDefault() {
+    board = JSON.parse(JSON.stringify(initialBoard));
+    initEditorBoard();
+}
+
+function saveAndPlay() {
+    editorMode = false;
+    selectedPiece = null;
+    document.querySelectorAll('.piece-btn').forEach(b => b.classList.remove('selected'));
+    showGame();
+}

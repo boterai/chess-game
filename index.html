@@ -13,7 +13,25 @@
             <p class="subtitle">Классическая игра в шахматы</p>
         </header>
 
-        <main>
+        <!-- Главное меню -->
+        <div id="main-menu" class="main-menu">
+            <div class="menu-buttons">
+                <button id="play-btn" class="menu-btn">
+                    <span class="btn-icon">🎮</span>
+                    <span class="btn-text">Играть</span>
+                </button>
+                <button id="editor-btn" class="menu-btn">
+                    <span class="btn-icon">🗺️</span>
+                    <span class="btn-text">Редактор карт</span>
+                </button>
+            </div>
+        </div>
+
+        <main id="game-container" style="display: none;">
+            <div class="back-button-container">
+                <button id="back-to-menu" class="btn btn-back">← Назад в меню</button>
+            </div>
+            
             <div class="game-section">
                 <div class="board-container">
                     <div id="chessboard"></div>
@@ -38,6 +56,8 @@
                 </div>
             </div>
 
+            </div>
+
             <section class="about">
                 <h2>О проекте</h2>
                 <p>Добро пожаловать в нашу шахматную игру! Это веб-приложение позволяет играть в классические шахматы прямо в браузере.</p>
@@ -58,6 +78,58 @@
                 </div>
             </section>
         </main>
+
+        <!-- Редактор карт -->
+        <div id="editor-container" style="display: none;">
+            <div class="back-button-container">
+                <button id="back-from-editor" class="btn btn-back">← Назад в меню</button>
+            </div>
+
+            <div class="editor-section">
+                <h2>Редактор карт</h2>
+                <p class="editor-description">Создайте свою собственную расстановку фигур</p>
+                
+                <div class="editor-content">
+                    <div class="board-container">
+                        <div id="editor-board"></div>
+                    </div>
+                    
+                    <div class="editor-controls">
+                        <h3>Фигуры</h3>
+                        <div class="pieces-palette">
+                            <div class="palette-section">
+                                <h4>Белые</h4>
+                                <div class="pieces-grid">
+                                    <button class="piece-btn" data-piece="♔" data-color="white">♔</button>
+                                    <button class="piece-btn" data-piece="♕" data-color="white">♕</button>
+                                    <button class="piece-btn" data-piece="♖" data-color="white">♖</button>
+                                    <button class="piece-btn" data-piece="♗" data-color="white">♗</button>
+                                    <button class="piece-btn" data-piece="♘" data-color="white">♘</button>
+                                    <button class="piece-btn" data-piece="♙" data-color="white">♙</button>
+                                </div>
+                            </div>
+                            <div class="palette-section">
+                                <h4>Черные</h4>
+                                <div class="pieces-grid">
+                                    <button class="piece-btn" data-piece="♚" data-color="black">♚</button>
+                                    <button class="piece-btn" data-piece="♛" data-color="black">♛</button>
+                                    <button class="piece-btn" data-piece="♜" data-color="black">♜</button>
+                                    <button class="piece-btn" data-piece="♝" data-color="black">♝</button>
+                                    <button class="piece-btn" data-piece="♞" data-color="black">♞</button>
+                                    <button class="piece-btn" data-piece="♟" data-color="black">♟</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="editor-actions">
+                            <button id="clear-board" class="btn btn-secondary">Очистить доску</button>
+                            <button id="reset-to-default" class="btn btn-secondary">Стандартная позиция</button>
+                            <button id="save-position" class="btn btn-primary">Сохранить и играть</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <footer>
             <p>&copy; 2025 Chess Game. Все права защищены.</p>
