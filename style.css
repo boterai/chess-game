@@ -43,9 +43,10 @@ header h1 {
 main {
     background: white;
     border-radius: 20px;
-    padding: 40px;
+    padding: 80px 40px 40px;
     box-shadow: 0 10px 50px rgba(0, 0, 0, 0.2);
     margin: 20px;
+    position: relative;
 }
 
 /* Главное меню */
@@ -125,6 +126,33 @@ main {
 
 .back-button-container {
     margin-bottom: 20px;
+}
+
+.close-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    background: transparent;
+    border: 3px solid #00d4ff;
+    border-radius: 8px;
+    color: #00d4ff;
+    font-size: 28px;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+}
+
+.close-btn:hover {
+    background: rgba(0, 212, 255, 0.2);
+    box-shadow: 0 0 25px rgba(0, 212, 255, 0.8);
+    transform: rotate(90deg);
 }
 
 .btn-back {
@@ -347,21 +375,23 @@ footer {
 #editor-container {
     background: white;
     border-radius: 20px;
-    padding: 40px;
+    padding: 80px 40px 40px;
     box-shadow: 0 10px 50px rgba(0, 0, 0, 0.2);
     margin: 20px;
+    position: relative;
 }
 
 /* Страница выбора игры */
 #game-select-container {
     background: transparent;
     border-radius: 0;
-    padding: 40px;
+    padding: 80px 40px 40px;
     box-shadow: none;
     margin: 20px;
     max-width: 800px;
     margin-left: auto;
     margin-right: auto;
+    position: relative;
 }
 
 .game-select-section h2 {
