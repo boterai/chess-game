@@ -70,34 +70,34 @@ main {
     min-width: auto;
     padding: 40px 30px;
     background: transparent;
-    color: #0080ff;
-    border: 3px solid #0080ff;
+    color: #00d4ff;
+    border: 3px solid #00d4ff;
     border-radius: 15px;
     cursor: pointer;
     transition: all 0.3s;
-    box-shadow: 0 0 20px rgba(0, 128, 255, 0.5);
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
 }
 
 .menu-btn:hover {
-    background: rgba(0, 128, 255, 0.1);
+    background: rgba(0, 212, 255, 0.1);
     transform: translateY(-5px);
-    box-shadow: 0 0 40px rgba(0, 128, 255, 0.8), 0 10px 30px rgba(0, 128, 255, 0.6);
+    box-shadow: 0 0 40px rgba(0, 212, 255, 0.8), 0 10px 30px rgba(0, 212, 255, 0.6);
 }
 
 .btn-icon {
     display: block;
     font-size: 4em;
     margin-bottom: 15px;
-    color: #0080ff;
-    filter: drop-shadow(0 0 10px rgba(0, 128, 255, 0.8));
+    color: #00d4ff;
+    filter: drop-shadow(0 0 10px rgba(0, 212, 255, 0.8));
 }
 
 .btn-text {
     display: block;
     font-size: 1.5em;
     font-weight: bold;
-    color: #0080ff;
-    text-shadow: 0 0 10px rgba(0, 128, 255, 0.6);
+    color: #00d4ff;
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.6);
 }
 
 .back-button-container {
