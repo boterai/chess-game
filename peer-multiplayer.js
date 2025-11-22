@@ -1,6 +1,5 @@
-// P2P Мультиплеер с глобальным обнаружением комнат через JSONBin.io (бесплатно, без настройки)
-const JSONBIN_URL = 'https://api.jsonbin.io/v3/b/674246c5acd3cb34a8b42e9f';
-const JSONBIN_KEY = '$2a$10$vXZPqKGHxO7mKUz8VXqKbeQqHf8LYh8fP9tYLXZHqZqKbeQqHf8LY';
+// P2P Мультиплеер с обнаружением комнат через localStorage (работает на одном устройстве между вкладками)
+// Для настоящей глобальности нужен backend сервер
 
 class PeerMultiplayerManager {
     constructor() {
@@ -52,7 +51,7 @@ class PeerMultiplayerManager {
         });
     }
 
-    // Создание новой игровой комнаты с регистрацией в JSONBin
+    // Создание новой игровой комнаты
     async createRoom(matchName, color) {
         try {
             console.log('createRoom called with:', matchName, color);
@@ -73,32 +72,17 @@ class PeerMultiplayerManager {
 
             console.log('Creating room with ID:', this.peerId);
 
-            // Регистрируем комнату
-            try {
-                // Получаем текущий список комнат
-                console.log('Getting current rooms...');
-                const currentRooms = await this.getCurrentRooms();
-                console.log('Current rooms:', currentRooms);
-                
-                // Добавляем новую комнату
-                currentRooms[this.peerId] = {
-                    roomCode: this.peerId,
-                    matchName: matchName,
-                    color: color,
-                    status: 'waiting',
-                    lastSeen: Date.now()
-                };
-                
-                // Сохраняем обратно
-                console.log('Saving rooms...');
-                const saved = await this.saveRooms(currentRooms);
-                console.log('Rooms saved:', saved);
-                
-                console.log('Room registered successfully');
-            } catch (error) {
-                console.error('Error registering room:', error);
-                throw error;
-            }
+            // Регистрируем комнату в localStorage
+            const rooms = this.getAllRoomsFromStorage();
+            rooms[this.peerId] = {
+                roomCode: this.peerId,
+                matchName: matchName,
+                color: color,
+                status: 'waiting',
+                lastSeen: Date.now()
+            };
+            localStorage.setItem('globalChessRooms', JSON.stringify(rooms));
+            console.log('Room registered in localStorage');
             
             // Сохраняем в свои комнаты
             const myRooms = JSON.parse(localStorage.getItem('myOnlineRooms') || '[]');
@@ -113,6 +97,9 @@ class PeerMultiplayerManager {
 
             // Запускаем heartbeat для поддержания комнаты активной
             this.startHeartbeat();
+            
+            // Уведомляем об изменении
+            window.dispatchEvent(new CustomEvent('chessRoomsUpdated'));
 
             return {
                 roomCode: this.peerId,
@@ -125,79 +112,39 @@ class PeerMultiplayerManager {
         }
     }
 
-    // Вспомогательные методы для работы с JSONBin
-    async getCurrentRooms() {
+    // Получить все комнаты из storage
+    getAllRoomsFromStorage() {
         try {
-            const response = await fetch(JSONBIN_URL + '/latest', {
-                headers: {
-                    'X-Master-Key': JSONBIN_KEY
-                }
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                return data.record || {};
-            }
-            return {};
-        } catch (error) {
-            console.error('Error getting rooms:', error);
+            const data = localStorage.getItem('globalChessRooms');
+            return data ? JSON.parse(data) : {};
+        } catch (e) {
             return {};
         }
-    }
-
-    async saveRooms(rooms) {
-        try {
-            const response = await fetch(JSONBIN_URL, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Master-Key': JSONBIN_KEY
-                },
-                body: JSON.stringify(rooms)
-            });
-            
-            return response.ok;
-        } catch (error) {
-            console.error('Error saving rooms:', error);
-            return false;
-        }
-    }
-
-    // Регистрация комнаты (оставлено для совместимости)
-    registerRoom(roomData) {
-        // Не используется
     }
 
     // Обновление статуса комнаты
     async updateRoomStatus(status) {
         if (!this.roomCode) return;
         
-        try {
-            const rooms = await this.getCurrentRooms();
-            if (rooms[this.roomCode]) {
-                rooms[this.roomCode].status = status;
-                rooms[this.roomCode].lastSeen = Date.now();
-                await this.saveRooms(rooms);
-            }
-        } catch (error) {
-            console.error('Error updating room status:', error);
+        const rooms = this.getAllRoomsFromStorage();
+        if (rooms[this.roomCode]) {
+            rooms[this.roomCode].status = status;
+            rooms[this.roomCode].lastSeen = Date.now();
+            localStorage.setItem('globalChessRooms', JSON.stringify(rooms));
+            window.dispatchEvent(new CustomEvent('chessRoomsUpdated'));
         }
     }
 
     // Heartbeat для поддержания комнаты активной
     startHeartbeat() {
         // Обновляем каждые 15 секунд
-        this.heartbeatInterval = setInterval(async () => {
+        this.heartbeatInterval = setInterval(() => {
             if (this.roomCode) {
-                try {
-                    const rooms = await this.getCurrentRooms();
-                    if (rooms[this.roomCode]) {
-                        rooms[this.roomCode].lastSeen = Date.now();
-                        rooms[this.roomCode].status = this.isConnected ? 'playing' : 'waiting';
-                        await this.saveRooms(rooms);
-                    }
-                } catch (error) {
-                    console.error('Heartbeat error:', error);
+                const rooms = this.getAllRoomsFromStorage();
+                if (rooms[this.roomCode]) {
+                    rooms[this.roomCode].lastSeen = Date.now();
+                    rooms[this.roomCode].status = this.isConnected ? 'playing' : 'waiting';
+                    localStorage.setItem('globalChessRooms', JSON.stringify(rooms));
                 }
             }
         }, 15000);
@@ -215,13 +162,10 @@ class PeerMultiplayerManager {
     async unregisterRoom() {
         if (!this.roomCode) return;
         
-        try {
-            const rooms = await this.getCurrentRooms();
-            delete rooms[this.roomCode];
-            await this.saveRooms(rooms);
-        } catch (error) {
-            console.error('Error unregistering room:', error);
-        }
+        const rooms = this.getAllRoomsFromStorage();
+        delete rooms[this.roomCode];
+        localStorage.setItem('globalChessRooms', JSON.stringify(rooms));
+        window.dispatchEvent(new CustomEvent('chessRoomsUpdated'));
         
         this.stopHeartbeat();
     }
@@ -348,18 +292,8 @@ class PeerMultiplayerManager {
     // Статический метод для получения всех доступных комнат
     static async getAvailableRooms() {
         try {
-            const response = await fetch(JSONBIN_URL + '/latest', {
-                headers: {
-                    'X-Master-Key': JSONBIN_KEY
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error('Failed to fetch rooms');
-            }
-            
-            const data = await response.json();
-            const roomsData = data.record || {};
+            const data = localStorage.getItem('globalChessRooms');
+            const roomsData = data ? JSON.parse(data) : {};
             
             console.log('Fetched rooms:', roomsData);
             
@@ -390,16 +324,8 @@ class PeerMultiplayerManager {
     // Очистка старых комнат (вызывается автоматически при загрузке)
     static async cleanupOldRooms() {
         try {
-            const response = await fetch(JSONBIN_URL + '/latest', {
-                headers: {
-                    'X-Master-Key': JSONBIN_KEY
-                }
-            });
-            
-            if (!response.ok) return;
-            
-            const data = await response.json();
-            const roomsData = data.record || {};
+            const data = localStorage.getItem('globalChessRooms');
+            const roomsData = data ? JSON.parse(data) : {};
             
             const now = Date.now();
             let changed = false;
@@ -413,14 +339,7 @@ class PeerMultiplayerManager {
             }
             
             if (changed) {
-                await fetch(JSONBIN_URL, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Master-Key': JSONBIN_KEY
-                    },
-                    body: JSON.stringify(roomsData)
-                });
+                localStorage.setItem('globalChessRooms', JSON.stringify(roomsData));
             }
         } catch (error) {
             console.error('Error cleaning up rooms:', error);
@@ -429,18 +348,8 @@ class PeerMultiplayerManager {
 
     // Очистка всех комнат (для отладки)
     static async clearAllRooms() {
-        try {
-            await fetch(JSONBIN_URL, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Master-Key': JSONBIN_KEY
-                },
-                body: JSON.stringify({})
-            });
-        } catch (error) {
-            console.error('Error clearing rooms:', error);
-        }
+        localStorage.removeItem('globalChessRooms');
+        window.dispatchEvent(new CustomEvent('chessRoomsUpdated'));
     }
 }
 
