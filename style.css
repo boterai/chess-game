@@ -49,6 +49,10 @@ main {
     padding: 60px 40px;
     box-shadow: none;
     text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
 }
 
 .menu-buttons {
