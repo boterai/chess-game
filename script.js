@@ -496,22 +496,27 @@ function getMatches() {
 
 // Получение активных онлайн-комнат из localStorage (для P2P)
 async function getOnlineRooms() {
-    // В P2P режиме показываем только комнаты, в которых участвуем
+    // Получаем все доступные комнаты
+    const availableRooms = PeerMultiplayerManager.getAvailableRooms();
     const savedRooms = JSON.parse(localStorage.getItem('myOnlineRooms') || '[]');
     const onlineRooms = [];
     
-    savedRooms.forEach(room => {
+    // Показываем все доступные комнаты
+    availableRooms.forEach(room => {
+        const myRoom = savedRooms.find(r => r.roomCode === room.roomCode);
+        const isParticipant = myRoom !== undefined;
+        
         onlineRooms.push({
             id: `online_${room.roomCode}`,
             roomCode: room.roomCode,
-            name: room.matchName || `Партия ${room.roomCode.substring(0, 6)}`,
+            name: room.matchName || `Партия ${room.roomCode.substring(7, 13)}`,
             color: room.color || '#00d4ff',
-            status: 'В процессе',
+            status: room.status === 'waiting' ? 'Ожидание соперника' : 'В процессе',
             isOnline: true,
-            isParticipant: true,
-            playerId: room.playerId,
-            playerColor: room.playerColor,
-            canJoin: false
+            isParticipant: isParticipant,
+            playerId: myRoom?.playerId,
+            playerColor: myRoom?.playerColor,
+            canJoin: room.status === 'waiting' && !isParticipant
         });
     });
     
@@ -727,3 +732,17 @@ function updateModalColor(color) {
     closeBtn.style.color = color;
     closeBtn.style.borderColor = color;
 }
+
+// Автообновление списка комнат каждые 3 секунды
+setInterval(() => {
+    if (document.getElementById('game-selection-page').style.display !== 'none') {
+        updateGamesList();
+    }
+}, 3000);
+
+// Слушаем события обновления комнат
+window.addEventListener('chessRoomsUpdated', () => {
+    if (document.getElementById('game-selection-page').style.display !== 'none') {
+        updateGamesList();
+    }
+});

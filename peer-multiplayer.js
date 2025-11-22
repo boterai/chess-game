@@ -1,4 +1,4 @@
-// P2P Мультиплеер через PeerJS (без необходимости сервера)
+// P2P Мультиплеер с автоматическим обнаружением комнат через localStorage
 class PeerMultiplayerManager {
     constructor() {
         this.peer = null;
@@ -7,17 +7,21 @@ class PeerMultiplayerManager {
         this.isHost = false;
         this.isConnected = false;
         this.playerColor = null;
+        this.roomCode = null;
+        this.heartbeatInterval = null;
     }
 
     // Инициализация PeerJS
     async initialize() {
         return new Promise((resolve, reject) => {
             try {
-                // Создаем peer с автоматическим ID
-                this.peer = new Peer();
+                // Создаем peer с префиксом для шахмат
+                const customId = 'chess-' + Math.random().toString(36).substr(2, 9);
+                this.peer = new Peer(customId);
 
                 this.peer.on('open', (id) => {
                     this.peerId = id;
+                    this.roomCode = id;
                     console.log('Мой Peer ID:', id);
                     resolve(id);
                 });
@@ -33,7 +37,10 @@ class PeerMultiplayerManager {
                     this.connection = conn;
                     this.setupConnection(conn);
                     this.isHost = true;
-                    this.playerColor = 'white'; // Хост играет белыми
+                    this.playerColor = 'white';
+                    
+                    // Обновляем статус комнаты - игра началась
+                    this.updateRoomStatus('playing');
                 });
 
             } catch (error) {
@@ -42,7 +49,7 @@ class PeerMultiplayerManager {
         });
     }
 
-    // Создание новой игровой комнаты
+    // Создание новой игровой комнаты с автоматической регистрацией
     async createRoom(matchName, color) {
         if (!this.peer) {
             await this.initialize();
@@ -50,24 +57,104 @@ class PeerMultiplayerManager {
 
         this.isHost = true;
         this.playerColor = 'white';
-        
-        // Сохраняем информацию о комнате
+
+        // Регистрируем комнату в глобальном списке
         const roomData = {
-            peerId: this.peerId,
+            roomCode: this.peerId,
             matchName: matchName,
             color: color,
+            status: 'waiting',
+            lastSeen: Date.now(),
             createdAt: Date.now()
         };
 
-        // Сохраняем в localStorage для отображения
-        if (typeof saveMyOnlineRoom !== 'undefined') {
-            saveMyOnlineRoom(this.peerId, this.peerId, 'white');
-        }
+        this.registerRoom(roomData);
+        
+        // Сохраняем в свои комнаты
+        const myRooms = JSON.parse(localStorage.getItem('myOnlineRooms') || '[]');
+        myRooms.push({
+            roomCode: this.peerId,
+            matchName: matchName,
+            color: color,
+            playerId: this.peerId,
+            playerColor: 'white'
+        });
+        localStorage.setItem('myOnlineRooms', JSON.stringify(myRooms));
 
-        return this.peerId; // Возвращаем peer ID как код комнаты
+        // Запускаем heartbeat для поддержания комнаты активной
+        this.startHeartbeat();
+
+        return {
+            roomCode: this.peerId,
+            playerId: this.peerId,
+            playerColor: 'white'
+        };
     }
 
-    // Присоединение к комнате
+    // Регистрация комнаты в глобальном списке
+    registerRoom(roomData) {
+        const availableRooms = JSON.parse(localStorage.getItem('availableChessRooms') || '[]');
+        
+        // Удаляем старую запись если есть
+        const filtered = availableRooms.filter(r => r.roomCode !== roomData.roomCode);
+        
+        // Добавляем новую
+        filtered.push(roomData);
+        
+        localStorage.setItem('availableChessRooms', JSON.stringify(filtered));
+        
+        // Оповещаем другие вкладки
+        window.dispatchEvent(new CustomEvent('chessRoomsUpdated'));
+    }
+
+    // Обновление статуса комнаты
+    updateRoomStatus(status) {
+        const availableRooms = JSON.parse(localStorage.getItem('availableChessRooms') || '[]');
+        const room = availableRooms.find(r => r.roomCode === this.roomCode);
+        
+        if (room) {
+            room.status = status;
+            room.lastSeen = Date.now();
+            localStorage.setItem('availableChessRooms', JSON.stringify(availableRooms));
+            window.dispatchEvent(new CustomEvent('chessRoomsUpdated'));
+        }
+    }
+
+    // Heartbeat для поддержания комнаты активной
+    startHeartbeat() {
+        // Обновляем каждые 5 секунд
+        this.heartbeatInterval = setInterval(() => {
+            const availableRooms = JSON.parse(localStorage.getItem('availableChessRooms') || '[]');
+            const room = availableRooms.find(r => r.roomCode === this.roomCode);
+            
+            if (room) {
+                room.lastSeen = Date.now();
+                localStorage.setItem('availableChessRooms', JSON.stringify(availableRooms));
+            }
+        }, 5000);
+    }
+
+    // Остановка heartbeat
+    stopHeartbeat() {
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = null;
+        }
+    }
+
+    // Удаление комнаты из списка
+    unregisterRoom() {
+        if (!this.roomCode) return;
+        
+        const availableRooms = JSON.parse(localStorage.getItem('availableChessRooms') || '[]');
+        const filtered = availableRooms.filter(r => r.roomCode !== this.roomCode);
+        localStorage.setItem('availableChessRooms', JSON.stringify(filtered));
+        
+        this.stopHeartbeat();
+        window.dispatchEvent(new CustomEvent('chessRoomsUpdated'));
+    }
+
+    // Присоединение к комнате по коду
     async joinRoom(roomCode) {
         if (!this.peer) {
             await this.initialize();
@@ -75,32 +162,35 @@ class PeerMultiplayerManager {
 
         return new Promise((resolve, reject) => {
             try {
-                console.log('Подключение к peer:', roomCode);
-                this.connection = this.peer.connect(roomCode);
                 this.isHost = false;
-                this.playerColor = 'black'; // Гость играет чёрными
+                this.playerColor = 'black';
 
-                this.connection.on('open', () => {
-                    console.log('Соединение установлено');
-                    this.setupConnection(this.connection);
+                const conn = this.peer.connect(roomCode);
+                this.connection = conn;
+
+                conn.on('open', () => {
+                    console.log('Подключено к комнате:', roomCode);
                     this.isConnected = true;
+                    this.setupConnection(conn);
                     
-                    // Отправляем приветственное сообщение
-                    this.sendMessage({
-                        type: 'joined',
-                        playerId: this.peerId
+                    // Сохраняем в свои комнаты
+                    const myRooms = JSON.parse(localStorage.getItem('myOnlineRooms') || '[]');
+                    myRooms.push({
+                        roomCode: roomCode,
+                        playerId: this.peerId,
+                        playerColor: 'black'
                     });
+                    localStorage.setItem('myOnlineRooms', JSON.stringify(myRooms));
 
-                    // Сохраняем информацию об участии
-                    if (typeof saveMyOnlineRoom !== 'undefined') {
-                        saveMyOnlineRoom(roomCode, this.peerId, 'black');
-                    }
-
-                    resolve();
+                    resolve({
+                        roomCode: roomCode,
+                        playerId: this.peerId,
+                        playerColor: 'black'
+                    });
                 });
 
-                this.connection.on('error', (error) => {
-                    console.error('Ошибка соединения:', error);
+                conn.on('error', (error) => {
+                    console.error('Ошибка подключения:', error);
                     reject(error);
                 });
 
@@ -114,151 +204,99 @@ class PeerMultiplayerManager {
     setupConnection(conn) {
         conn.on('data', (data) => {
             console.log('Получены данные:', data);
-            this.handleMessage(data);
+            
+            if (data.type === 'move') {
+                // Обработка хода соперника
+                if (window.handleOpponentMove) {
+                    window.handleOpponentMove(data.from, data.to);
+                }
+            } else if (data.type === 'gameState') {
+                // Синхронизация состояния игры
+                if (window.syncGameState) {
+                    window.syncGameState(data.state);
+                }
+            }
         });
 
         conn.on('close', () => {
             console.log('Соединение закрыто');
             this.isConnected = false;
-            if (typeof updateConnectionStatus !== 'undefined') {
-                updateConnectionStatus('disconnected');
+            
+            // Если мы хост, возвращаем статус в ожидание
+            if (this.isHost) {
+                this.updateRoomStatus('waiting');
             }
         });
 
         conn.on('error', (error) => {
             console.error('Ошибка соединения:', error);
         });
+    }
 
-        // Если это хост и соединение установлено
-        if (this.isHost && conn.open) {
-            this.isConnected = true;
-            if (typeof updateConnectionStatus !== 'undefined') {
-                updateConnectionStatus('connected');
-            }
-            
-            // Отправляем текущее состояние игры новому игроку
-            this.sendMessage({
-                type: 'game_state',
-                board: board,
-                currentPlayer: currentPlayer,
-                moveHistory: moveHistory
+    // Отправка хода сопернику
+    sendMove(from, to) {
+        if (this.connection && this.connection.open) {
+            this.connection.send({
+                type: 'move',
+                from: from,
+                to: to
             });
         }
     }
 
-    // Обработка входящих сообщений
-    handleMessage(data) {
-        switch (data.type) {
-            case 'joined':
-                console.log('Игрок присоединился:', data.playerId);
-                if (typeof updateConnectionStatus !== 'undefined') {
-                    updateConnectionStatus('connected');
-                }
-                if (typeof hideWaitingModal !== 'undefined') {
-                    hideWaitingModal();
-                }
-                break;
-
-            case 'move':
-                // Применяем ход от соперника
-                board = data.board;
-                currentPlayer = data.currentPlayer;
-                moveHistory = data.moveHistory;
-                
-                if (typeof initBoard !== 'undefined') {
-                    initBoard();
-                }
-                if (typeof updateDisplay !== 'undefined') {
-                    updateDisplay();
-                }
-                if (typeof updateConnectionStatus !== 'undefined') {
-                    updateConnectionStatus();
-                }
-                break;
-
-            case 'game_state':
-                // Получаем состояние игры от хоста
-                board = data.board;
-                currentPlayer = data.currentPlayer;
-                moveHistory = data.moveHistory;
-                
-                if (typeof initBoard !== 'undefined') {
-                    initBoard();
-                }
-                if (typeof updateDisplay !== 'undefined') {
-                    updateDisplay();
-                }
-                break;
-        }
-    }
-
-    // Отправка сообщения
-    sendMessage(data) {
+    // Отправка состояния игры
+    sendGameState(state) {
         if (this.connection && this.connection.open) {
-            this.connection.send(data);
+            this.connection.send({
+                type: 'gameState',
+                state: state
+            });
         }
-    }
-
-    // Выполнение хода в P2P игре
-    async makeOnlineMove(fromRow, fromCol, toRow, toCol) {
-        if (!this.isConnected) {
-            return false;
-        }
-
-        // Проверяем, что сейчас ход этого игрока
-        if (currentPlayer !== this.playerColor) {
-            return false;
-        }
-
-        const piece = board[fromRow][fromCol];
-        const targetPiece = board[toRow][toCol];
-
-        if (!piece || getPieceColor(piece) !== currentPlayer) {
-            return false;
-        }
-
-        if (targetPiece && getPieceColor(targetPiece) === currentPlayer) {
-            return false;
-        }
-
-        // Выполняем ход
-        board[toRow][toCol] = piece;
-        board[fromRow][fromCol] = '';
-
-        const move = `${currentPlayer === 'white' ? 'Белые' : 'Чёрные'}: ${String.fromCharCode(97 + fromCol)}${8 - fromRow} → ${String.fromCharCode(97 + toCol)}${8 - toRow}`;
-        moveHistory.push(move);
-
-        const nextPlayer = currentPlayer === 'white' ? 'black' : 'white';
-        currentPlayer = nextPlayer;
-
-        // Отправляем ход сопернику
-        this.sendMessage({
-            type: 'move',
-            board: board,
-            currentPlayer: currentPlayer,
-            moveHistory: moveHistory
-        });
-
-        if (typeof initBoard !== 'undefined') {
-            initBoard();
-        }
-
-        return true;
     }
 
     // Отключение
     disconnect() {
+        this.unregisterRoom();
+        
         if (this.connection) {
             this.connection.close();
+            this.connection = null;
         }
+
         if (this.peer) {
             this.peer.destroy();
+            this.peer = null;
         }
+
         this.isConnected = false;
-        this.connection = null;
-        this.peer = null;
+        this.isHost = false;
+        this.playerColor = null;
+    }
+
+    // Статический метод для получения всех доступных комнат
+    static getAvailableRooms() {
+        const rooms = JSON.parse(localStorage.getItem('availableChessRooms') || '[]');
+        const now = Date.now();
+        
+        // Фильтруем комнаты, которые не обновлялись более 30 секунд
+        const activeRooms = rooms.filter(room => {
+            return (now - room.lastSeen) < 30000 && room.status === 'waiting';
+        });
+        
+        // Обновляем список
+        if (activeRooms.length !== rooms.length) {
+            localStorage.setItem('availableChessRooms', JSON.stringify(activeRooms));
+        }
+        
+        return activeRooms;
+    }
+
+    // Очистка всех комнат
+    static clearAllRooms() {
+        localStorage.removeItem('availableChessRooms');
+        window.dispatchEvent(new CustomEvent('chessRoomsUpdated'));
     }
 }
 
-// Глобальный экземпляр P2P менеджера
-const peerMultiplayer = new PeerMultiplayerManager();
+// Глобальный экземпляр
+window.peerMultiplayer = new PeerMultiplayerManager();
