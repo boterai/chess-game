@@ -262,9 +262,11 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('confirm-create').addEventListener('click', createMatch);
     
-    document.querySelectorAll('.modal-close').forEach(btn => {
-        btn.addEventListener('click', hideCreateModal);
-    });
+    // Закрытие модального окна создания матча
+    const createModalCloseBtn = document.querySelector('#create-match-modal .modal-close');
+    if (createModalCloseBtn) {
+        createModalCloseBtn.addEventListener('click', hideCreateModal);
+    }
     
     // Кнопки выбора типа игры
     document.querySelectorAll('.game-type-btn').forEach(btn => {
@@ -276,26 +278,38 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     // Кнопки для модального окна ожидания
-    document.querySelector('.waiting-close').addEventListener('click', async () => {
-        await multiplayerManager.leaveRoom();
-        hideWaitingModal();
-        showGameSelect();
-    });
-    
-    document.getElementById('copy-code-btn').addEventListener('click', () => {
-        const roomCode = document.getElementById('room-code-text').textContent;
-        navigator.clipboard.writeText(roomCode).then(() => {
-            const btn = document.getElementById('copy-code-btn');
-            btn.textContent = 'Скопировано!';
-            setTimeout(() => {
-                btn.textContent = 'Копировать';
-            }, 2000);
+    const waitingCloseBtn = document.querySelector('.waiting-close');
+    if (waitingCloseBtn) {
+        waitingCloseBtn.addEventListener('click', async () => {
+            await multiplayerManager.leaveRoom();
+            hideWaitingModal();
+            showGameSelect();
         });
-    });
+    }
+    
+    const copyCodeBtn = document.getElementById('copy-code-btn');
+    if (copyCodeBtn) {
+        copyCodeBtn.addEventListener('click', () => {
+            const roomCode = document.getElementById('room-code-text').textContent;
+            navigator.clipboard.writeText(roomCode).then(() => {
+                copyCodeBtn.textContent = 'Скопировано!';
+                setTimeout(() => {
+                    copyCodeBtn.textContent = 'Копировать';
+                }, 2000);
+            });
+        });
+    }
     
     // Кнопки для модального окна присоединения
-    document.querySelector('.join-close').addEventListener('click', hideJoinModal);
-    document.getElementById('confirm-join').addEventListener('click', joinOnlineGame);
+    const joinCloseBtn = document.querySelector('.join-close');
+    if (joinCloseBtn) {
+        joinCloseBtn.addEventListener('click', hideJoinModal);
+    }
+    
+    const confirmJoinBtn = document.getElementById('confirm-join');
+    if (confirmJoinBtn) {
+        confirmJoinBtn.addEventListener('click', joinOnlineGame);
+    }
     
     // Добавить кнопку "Присоединиться к игре" в выбор игр
     const createGameSection = document.querySelector('.create-game-section');
@@ -402,20 +416,24 @@ function hideJoinModal() {
 }
 
 async function createMatch() {
+    console.log('createMatch вызвана, gameType:', gameType);
     const matchName = document.getElementById('match-name').value || `Партия #${getMatches().length + 1}`;
     
     if (gameType === 'online') {
         // Создание онлайн-матча
         try {
+            console.log('Создание онлайн-матча...');
             const roomCode = await multiplayerManager.createRoom(matchName, selectedColor);
             hideCreateModal();
             showWaitingModal(roomCode);
             showGame();
         } catch (error) {
+            console.error('Ошибка онлайн-матча:', error);
             alert('Ошибка создания онлайн-матча: ' + error.message);
         }
     } else {
         // Создание локального матча
+        console.log('Создание локального матча...');
         const match = {
             id: Date.now(),
             name: matchName,
@@ -429,7 +447,6 @@ async function createMatch() {
         
         saveMatch(match);
         loadMatch(match.id);
-        
         document.getElementById('match-name').value = '';
         hideCreateModal();
         showGame();

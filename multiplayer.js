@@ -6,6 +6,11 @@ class MultiplayerManager {
         this.playerColor = null;
         this.isOnline = false;
     }
+    
+    // Проверка доступности Firebase
+    isFirebaseAvailable() {
+        return database !== null && typeof database !== 'undefined';
+    }
 
     // Генерация уникального кода комнаты
     generateRoomCode() {
@@ -14,6 +19,10 @@ class MultiplayerManager {
 
     // Создание новой онлайн-комнаты
     async createRoom(matchName, color) {
+        if (!this.isFirebaseAvailable()) {
+            throw new Error('Firebase не настроен. Пожалуйста, следуйте инструкциям в FIREBASE_SETUP.md');
+        }
+        
         const roomCode = this.generateRoomCode();
         this.playerId = Date.now().toString();
         this.playerColor = 'white'; // Создатель играет белыми
@@ -50,6 +59,10 @@ class MultiplayerManager {
 
     // Присоединение к существующей комнате
     async joinRoom(roomCode) {
+        if (!this.isFirebaseAvailable()) {
+            throw new Error('Firebase не настроен. Пожалуйста, следуйте инструкциям в FIREBASE_SETUP.md');
+        }
+        
         try {
             const roomSnapshot = await database.ref(`rooms/${roomCode}`).once('value');
             
