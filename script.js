@@ -509,7 +509,7 @@ async function getOnlineRooms() {
         onlineRooms.push({
             id: `online_${room.roomCode}`,
             roomCode: room.roomCode,
-            name: room.matchName || `Партия ${room.roomCode.substring(7, 13)}`,
+            name: room.matchName || `Партия ${room.roomCode.substring(6)}`,
             color: room.color || '#00d4ff',
             status: room.status === 'waiting' ? 'Ожидание соперника' : 'В процессе',
             isOnline: true,
