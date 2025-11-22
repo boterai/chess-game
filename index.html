@@ -28,6 +28,44 @@
             </div>
         </div>
 
+        <!-- Страница выбора игры -->
+        <div id="game-select-container" style="display: none;">
+            <div class="back-button-container">
+                <button id="back-from-select" class="btn btn-back">← Назад в меню</button>
+            </div>
+
+            <div class="game-select-section">
+                <h2>Выбор игры</h2>
+                
+                <div class="create-game-section">
+                    <button id="create-game-btn" class="btn btn-primary btn-large">
+                        <span class="btn-icon-small">➕</span>
+                        Создать новую игру
+                    </button>
+                </div>
+
+                <div class="ongoing-games-section">
+                    <h3>Идущие раунды</h3>
+                    <div id="games-list" class="games-list">
+                        <div class="game-item">
+                            <div class="game-info">
+                                <span class="game-name">Партия #1</span>
+                                <span class="game-status">В процессе</span>
+                            </div>
+                            <button class="btn btn-secondary btn-small">Продолжить</button>
+                        </div>
+                        <div class="game-item">
+                            <div class="game-info">
+                                <span class="game-name">Партия #2</span>
+                                <span class="game-status">Ход белых</span>
+                            </div>
+                            <button class="btn btn-secondary btn-small">Продолжить</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <main id="game-container" style="display: none;">
             <div class="back-button-container">
                 <button id="back-to-menu" class="btn btn-back">← Назад в меню</button>

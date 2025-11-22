@@ -40,12 +40,21 @@ let selectedPiece = null;
 // Навигация
 function showMainMenu() {
     document.getElementById('main-menu').style.display = 'block';
+    document.getElementById('game-select-container').style.display = 'none';
+    document.getElementById('game-container').style.display = 'none';
+    document.getElementById('editor-container').style.display = 'none';
+}
+
+function showGameSelect() {
+    document.getElementById('main-menu').style.display = 'none';
+    document.getElementById('game-select-container').style.display = 'block';
     document.getElementById('game-container').style.display = 'none';
     document.getElementById('editor-container').style.display = 'none';
 }
 
 function showGame() {
     document.getElementById('main-menu').style.display = 'none';
+    document.getElementById('game-select-container').style.display = 'none';
     document.getElementById('game-container').style.display = 'block';
     document.getElementById('editor-container').style.display = 'none';
     initBoard();
@@ -53,6 +62,7 @@ function showGame() {
 
 function showEditor() {
     document.getElementById('main-menu').style.display = 'none';
+    document.getElementById('game-select-container').style.display = 'none';
     document.getElementById('game-container').style.display = 'none';
     document.getElementById('editor-container').style.display = 'block';
     editorMode = true;
@@ -201,12 +211,21 @@ function resetGame() {
 // Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', () => {
     // Кнопки главного меню
-    document.getElementById('play-btn').addEventListener('click', showGame);
+    document.getElementById('play-btn').addEventListener('click', showGameSelect);
     document.getElementById('editor-btn').addEventListener('click', showEditor);
     
     // Кнопки возврата
     document.getElementById('back-to-menu').addEventListener('click', showMainMenu);
     document.getElementById('back-from-editor').addEventListener('click', showMainMenu);
+    document.getElementById('back-from-select').addEventListener('click', showMainMenu);
+    
+    // Кнопка создания игры
+    document.getElementById('create-game-btn').addEventListener('click', showGame);
+    
+    // Кнопки продолжения игры
+    document.querySelectorAll('.game-item button').forEach(btn => {
+        btn.addEventListener('click', showGame);
+    });
     
     // Кнопки игры
     document.getElementById('new-game').addEventListener('click', newGame);
