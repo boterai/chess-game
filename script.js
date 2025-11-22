@@ -628,19 +628,30 @@ function deleteMatch(matchId) {
 }
 
 async function updateGamesList() {
+    console.log('=== updateGamesList START ===');
     const gamesList = document.getElementById('games-list');
+    console.log('games-list element:', gamesList);
+    
     const localMatches = getMatches();
+    console.log('localMatches:', localMatches);
+    
     const onlineRooms = await getOnlineRooms();
+    console.log('onlineRooms:', onlineRooms);
+    
     const allMatches = [...localMatches, ...onlineRooms];
+    console.log('allMatches (combined):', allMatches);
     
     if (allMatches.length === 0) {
+        console.log('No matches found, showing empty message');
         gamesList.innerHTML = '<p style="color: #00d4ff; text-align: center; padding: 20px;">Нет активных партий</p>';
         return;
     }
     
+    console.log('Rendering', allMatches.length, 'matches');
     gamesList.innerHTML = '';
     
     allMatches.forEach(match => {
+        console.log('Rendering match:', match);
         const gameItem = document.createElement('div');
         gameItem.className = 'game-item';
         gameItem.style.borderLeftColor = match.color;
@@ -691,6 +702,8 @@ async function updateGamesList() {
         
         gamesList.appendChild(gameItem);
     });
+    
+    console.log('=== updateGamesList END ===');
 }
 
 async function continueMatch(matchId) {
