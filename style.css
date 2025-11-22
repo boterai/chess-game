@@ -68,11 +68,14 @@ main {
     justify-content: center;
     align-items: center;
     max-width: 500px;
+    width: 100%;
     margin: 0 auto;
 }
 
 .menu-btn {
     width: 100%;
+    max-width: 500px;
+    min-height: 180px;
     min-width: auto;
     padding: 40px 30px;
     background: transparent;
