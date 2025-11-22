@@ -596,10 +596,21 @@ async function updateGamesList() {
                 <span class="game-status" style="color: ${match.color}99;">${match.status}</span>
             </div>
             <div class="game-actions">
-                <button class="btn btn-secondary btn-small" style="border-color: ${match.color}; color: ${match.color};" onclick="continueMatch('${match.id}')">Продолжить</button>
-                <button class="btn btn-danger btn-small" onclick="deleteMatch('${match.id}')">Удалить</button>
+                <button class="btn btn-secondary btn-small continue-match-btn" data-match-id="${match.id}" style="border-color: ${match.color}; color: ${match.color};">Продолжить</button>
+                <button class="btn btn-danger btn-small delete-match-btn" data-match-id="${match.id}">Удалить</button>
             </div>
         `;
+        
+        // Добавляем обработчики событий
+        const continueBtn = gameItem.querySelector('.continue-match-btn');
+        const deleteBtn = gameItem.querySelector('.delete-match-btn');
+        
+        continueBtn.addEventListener('click', () => continueMatch(match.id));
+        deleteBtn.addEventListener('click', () => {
+            if (confirm('Вы уверены, что хотите удалить эту партию?')) {
+                deleteMatch(match.id);
+            }
+        });
         
         gamesList.appendChild(gameItem);
     });
