@@ -432,25 +432,31 @@ function hideJoinModal() {
 }
 
 async function createMatch() {
-    console.log('createMatch вызвана, gameType:', gameType);
+    console.log('=== createMatch START ===');
+    console.log('gameType:', gameType);
     const matchName = document.getElementById('match-name').value || `Партия #${getMatches().length + 1}`;
+    console.log('matchName:', matchName);
+    console.log('selectedColor:', selectedColor);
     
     if (gameType === 'online') {
         // Используем PeerJS вместо Firebase
         try {
             console.log('Создание P2P онлайн-матча...');
+            console.log('Вызов peerMultiplayer.createRoom...');
             const result = await peerMultiplayer.createRoom(matchName, selectedColor);
-            console.log('Комната создана:', result);
+            console.log('Комната создана, результат:', result);
             
-            // Обновляем список через 1 секунду чтобы комната появилась
-            setTimeout(() => {
-                updateGamesList();
-            }, 1000);
+            // Проверяем что комната действительно сохранилась
+            const rooms = localStorage.getItem('globalChessRooms');
+            console.log('globalChessRooms после создания:', rooms);
             
             hideCreateModal();
-            showWaitingModal(result.roomCode);
+            showWaitingModal(result);
             showGame();
+            
+            console.log('=== createMatch END (success) ===');
         } catch (error) {
+            console.error('=== createMatch ERROR ===');
             console.error('Ошибка создания P2P матча:', error);
             alert('Ошибка создания онлайн-матча:\n' + error.message);
         }
@@ -508,9 +514,15 @@ function getMatches() {
 
 // Получение активных онлайн-комнат с глобального сервера
 async function getOnlineRooms() {
-    // Получаем все доступные комнаты с сервера
+    console.log('=== getOnlineRooms START ===');
+    
+    // Получаем все доступные комнаты
     const availableRooms = await PeerMultiplayerManager.getAvailableRooms();
+    console.log('availableRooms from PeerMultiplayerManager:', availableRooms);
+    
     const savedRooms = JSON.parse(localStorage.getItem('myOnlineRooms') || '[]');
+    console.log('savedRooms from localStorage:', savedRooms);
+    
     const onlineRooms = [];
     
     // Показываем все доступные комнаты
@@ -531,6 +543,9 @@ async function getOnlineRooms() {
             canJoin: !isParticipant
         });
     });
+    
+    console.log('onlineRooms result:', onlineRooms);
+    console.log('=== getOnlineRooms END ===');
     
     return onlineRooms;
 }
