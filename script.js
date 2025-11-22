@@ -551,17 +551,20 @@ function loadMatch(matchId) {
 }
 
 function deleteMatch(matchId) {
+    console.log('deleteMatch вызвана с ID:', matchId);
     if (matchId.startsWith('online_')) {
         // Удаление онлайн-комнаты из локального списка
         const roomCode = matchId.replace('online_', '');
         const savedRooms = JSON.parse(localStorage.getItem('myOnlineRooms') || '[]');
         const filtered = savedRooms.filter(r => r.roomCode !== roomCode);
         localStorage.setItem('myOnlineRooms', JSON.stringify(filtered));
+        console.log('Онлайн-комната удалена:', roomCode);
     } else {
         // Удаление локальной игры
         const matches = getMatches();
         const filtered = matches.filter(m => m.id !== matchId);
         localStorage.setItem('chessMatches', JSON.stringify(filtered));
+        console.log('Локальная игра удалена:', matchId);
     }
     updateGamesList();
 }
@@ -605,8 +608,15 @@ async function updateGamesList() {
         const continueBtn = gameItem.querySelector('.continue-match-btn');
         const deleteBtn = gameItem.querySelector('.delete-match-btn');
         
-        continueBtn.addEventListener('click', () => continueMatch(match.id));
+        console.log('Добавление обработчиков для матча:', match.id);
+        
+        continueBtn.addEventListener('click', () => {
+            console.log('Кнопка "Продолжить" нажата для:', match.id);
+            continueMatch(match.id);
+        });
+        
         deleteBtn.addEventListener('click', () => {
+            console.log('Кнопка "Удалить" нажата для:', match.id);
             if (confirm('Вы уверены, что хотите удалить эту партию?')) {
                 deleteMatch(match.id);
             }
