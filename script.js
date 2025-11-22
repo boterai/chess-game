@@ -336,6 +336,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     updateDisplay();
+    
+    // Автоматическое обновление списка онлайн-комнат каждые 5 секунд
+    setInterval(() => {
+        // Обновляем только если находимся на странице выбора игры
+        if (document.getElementById('game-select-container').style.display === 'block') {
+            updateGamesList();
+        }
+    }, 5000);
 });
 
 // Редактор карт
@@ -461,12 +469,17 @@ async function joinOnlineGame() {
         return;
     }
 
+    await joinRoomByCode(roomCode);
+}
+
+async function joinRoomByCode(roomCode) {
     try {
         await multiplayerManager.joinRoom(roomCode);
         gameType = 'online';
         hideJoinModal();
         showGame();
         updateConnectionStatus('connected');
+        updateGamesList(); // Обновляем список после присоединения
     } catch (error) {
         alert('Ошибка подключения: ' + error.message);
     }
@@ -491,20 +504,23 @@ async function getOnlineRooms() {
         const savedRooms = JSON.parse(localStorage.getItem('myOnlineRooms') || '[]');
         
         for (const [roomCode, roomData] of Object.entries(rooms)) {
-            // Показываем комнаты, в которых участвует текущий игрок
+            // Проверяем, является ли пользователь участником этой комнаты
             const myRoom = savedRooms.find(r => r.roomCode === roomCode);
-            if (myRoom) {
-                onlineRooms.push({
-                    id: `online_${roomCode}`,
-                    roomCode: roomCode,
-                    name: roomData.matchName,
-                    color: roomData.color,
-                    status: roomData.status === 'waiting' ? 'Ожидание соперника' : 'В процессе',
-                    isOnline: true,
-                    playerId: myRoom.playerId,
-                    playerColor: myRoom.playerColor
-                });
-            }
+            const isParticipant = myRoom !== undefined;
+            
+            // Показываем все комнаты, но отмечаем свои
+            onlineRooms.push({
+                id: `online_${roomCode}`,
+                roomCode: roomCode,
+                name: roomData.matchName,
+                color: roomData.color,
+                status: roomData.status === 'waiting' ? 'Ожидание соперника' : 'В процессе',
+                isOnline: true,
+                isParticipant: isParticipant,
+                playerId: myRoom?.playerId,
+                playerColor: myRoom?.playerColor,
+                canJoin: roomData.status === 'waiting' && !isParticipant
+            });
         }
         
         return onlineRooms;
@@ -596,6 +612,8 @@ async function updateGamesList() {
         gameItem.style.boxShadow = `0 0 15px ${match.color}4d`;
         
         const matchType = match.isOnline ? '🌐' : '💻';
+        const buttonText = match.canJoin ? 'Присоединиться' : 'Продолжить';
+        const showDelete = match.isOnline ? match.isParticipant : true; // Удалять можно только свои игры
         
         gameItem.innerHTML = `
             <div class="game-info">
@@ -603,8 +621,8 @@ async function updateGamesList() {
                 <span class="game-status" style="color: ${match.color}99;">${match.status}</span>
             </div>
             <div class="game-actions">
-                <button class="btn btn-secondary btn-small continue-match-btn" data-match-id="${match.id}" style="border-color: ${match.color}; color: ${match.color};">Продолжить</button>
-                <button class="btn btn-danger btn-small delete-match-btn" data-match-id="${match.id}">Удалить</button>
+                <button class="btn btn-secondary btn-small continue-match-btn" data-match-id="${match.id}" style="border-color: ${match.color}; color: ${match.color};">${buttonText}</button>
+                ${showDelete ? `<button class="btn btn-danger btn-small delete-match-btn" data-match-id="${match.id}">Удалить</button>` : ''}
             </div>
         `;
         
@@ -615,16 +633,23 @@ async function updateGamesList() {
         console.log('Добавление обработчиков для матча:', match.id);
         
         continueBtn.addEventListener('click', () => {
-            console.log('Кнопка "Продолжить" нажата для:', match.id);
-            continueMatch(match.id);
-        });
-        
-        deleteBtn.addEventListener('click', () => {
-            console.log('Кнопка "Удалить" нажата для:', match.id);
-            if (confirm('Вы уверены, что хотите удалить эту партию?')) {
-                deleteMatch(match.id);
+            console.log('Кнопка нажата для:', match.id, 'canJoin:', match.canJoin);
+            if (match.canJoin) {
+                // Присоединение к комнате
+                joinRoomByCode(match.roomCode);
+            } else {
+                continueMatch(match.id);
             }
         });
+        
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', () => {
+                console.log('Кнопка "Удалить" нажата для:', match.id);
+                if (confirm('Вы уверены, что хотите удалить эту партию?')) {
+                    deleteMatch(match.id);
+                }
+            });
+        }
         
         gamesList.appendChild(gameItem);
     });
