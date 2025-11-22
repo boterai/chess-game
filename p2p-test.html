@@ -120,10 +120,7 @@
             const myId = BROADCAST_ID + '-' + Math.random().toString(36).substr(2, 9);
             
             peer = new Peer(myId, {
-                host: '0.peerjs.com',
-                port: 443,
-                secure: true,
-                debug: 0
+                debug: 2
             });
 
             peer.on('open', (id) => {
@@ -170,10 +167,7 @@
             if (peer) peer.destroy();
             
             peer = new Peer(BROADCAST_ID, {
-                host: '0.peerjs.com',
-                port: 443,
-                secure: true,
-                debug: 0
+                debug: 2
             });
 
             peer.on('open', (id) => {
