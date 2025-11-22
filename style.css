@@ -69,30 +69,33 @@ main {
     width: 100%;
     min-width: auto;
     padding: 40px 30px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
+    background: transparent;
+    color: #4a90e2;
+    border: 3px solid #4a90e2;
     border-radius: 15px;
     cursor: pointer;
     transition: all 0.3s;
-    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
+    box-shadow: none;
 }
 
 .menu-btn:hover {
+    background: rgba(74, 144, 226, 0.1);
     transform: translateY(-5px);
-    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
+    box-shadow: 0 10px 30px rgba(74, 144, 226, 0.3);
 }
 
 .btn-icon {
     display: block;
     font-size: 4em;
     margin-bottom: 15px;
+    color: #4a90e2;
 }
 
 .btn-text {
     display: block;
     font-size: 1.5em;
     font-weight: bold;
+    color: #4a90e2;
 }
 
 .back-button-container {
