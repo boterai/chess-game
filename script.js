@@ -39,10 +39,12 @@ let selectedPiece = null;
 
 // Навигация
 function showMainMenu() {
-    document.getElementById('main-menu').style.display = 'block';
+    document.getElementById('main-menu').style.display = 'flex';
     document.getElementById('game-select-container').style.display = 'none';
     document.getElementById('game-container').style.display = 'none';
     document.getElementById('editor-container').style.display = 'none';
+    window.scrollTo(0, 0);
+    document.body.style.overflow = 'hidden';
 }
 
 function showGameSelect() {
@@ -50,6 +52,7 @@ function showGameSelect() {
     document.getElementById('game-select-container').style.display = 'block';
     document.getElementById('game-container').style.display = 'none';
     document.getElementById('editor-container').style.display = 'none';
+    document.body.style.overflow = 'auto';
 }
 
 function showGame() {
@@ -57,6 +60,7 @@ function showGame() {
     document.getElementById('game-select-container').style.display = 'none';
     document.getElementById('game-container').style.display = 'block';
     document.getElementById('editor-container').style.display = 'none';
+    document.body.style.overflow = 'auto';
     initBoard();
 }
 
@@ -65,6 +69,7 @@ function showEditor() {
     document.getElementById('game-select-container').style.display = 'none';
     document.getElementById('game-container').style.display = 'none';
     document.getElementById('editor-container').style.display = 'block';
+    document.body.style.overflow = 'auto';
     editorMode = true;
     initEditorBoard();
 }
