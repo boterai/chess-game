@@ -283,12 +283,11 @@ main {
 }
 
 .btn-secondary {
-    background: #6c757d;
-    color: white;
+    background: transparent;
 }
 
 .btn-secondary:hover {
-    background: #5a6268;
+    background: rgba(255, 255, 255, 0.1);
     transform: translateY(-2px);
 }
 
@@ -459,16 +458,17 @@ footer {
     align-items: center;
     padding: 20px;
     background: transparent;
-    border: 2px solid #00d4ff;
+    border-left: 5px solid;
+    border-top: 2px solid;
+    border-right: 2px solid;
+    border-bottom: 2px solid;
     border-radius: 10px;
     transition: all 0.3s;
-    box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
 }
 
 .game-item:hover {
-    background: rgba(0, 212, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
     transform: translateX(5px);
-    box-shadow: 0 0 30px rgba(0, 212, 255, 0.6);
 }
 
 .game-info {
@@ -497,12 +497,11 @@ footer {
     padding: 10px 20px;
     font-size: 1em;
     background: transparent;
-    color: #00d4ff;
-    border: 2px solid #00d4ff;
+    border: 2px solid;
 }
 
 .btn-small:hover {
-    background: rgba(0, 212, 255, 0.2);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 /* Модальное окно */
@@ -737,4 +736,95 @@ footer {
     .buttons {
         flex-direction: column;
     }
+}
+
+/* Выбор типа игры */
+.game-type-selector {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.game-type-btn {
+    flex: 1;
+    opacity: 0.5;
+    transition: all 0.3s;
+}
+
+.game-type-btn.active {
+    opacity: 1;
+    background: rgba(0, 212, 255, 0.2);
+}
+
+/* Модальное окно ожидания */
+.waiting-info {
+    text-align: center;
+    padding: 20px;
+}
+
+.spinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid rgba(0, 212, 255, 0.3);
+    border-top-color: #00d4ff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 20px auto;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.room-code-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin: 20px 0;
+    padding: 15px;
+    background: rgba(0, 212, 255, 0.1);
+    border: 2px solid #00d4ff;
+    border-radius: 10px;
+}
+
+#room-code-text {
+    font-size: 2em;
+    font-weight: bold;
+    color: #00d4ff;
+    letter-spacing: 5px;
+}
+
+.waiting-status {
+    color: #00d4ff;
+    font-size: 1.1em;
+    margin-top: 20px;
+}
+
+/* Статус подключения */
+.connection-status {
+    position: absolute;
+    top: 70px;
+    right: 20px;
+    padding: 10px 20px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid;
+    border-radius: 10px;
+    font-size: 0.9em;
+    z-index: 100;
+}
+
+.connection-status.connected {
+    border-color: #44ff44;
+    color: #44ff44;
+}
+
+.connection-status.waiting {
+    border-color: #ffff44;
+    color: #ffff44;
+}
+
+.connection-status.disconnected {
+    border-color: #ff4444;
+    color: #ff4444;
 }

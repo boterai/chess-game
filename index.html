@@ -46,26 +46,7 @@
                 <div class="ongoing-games-section">
                     <h3>Идущие раунды</h3>
                     <div id="games-list" class="games-list">
-                        <div class="game-item">
-                            <div class="game-info">
-                                <span class="game-name">Партия #1</span>
-                                <span class="game-status">В процессе</span>
-                            </div>
-                            <div class="game-actions">
-                                <button class="btn btn-secondary btn-small">Продолжить</button>
-                                <button class="btn btn-danger btn-small">Удалить</button>
-                            </div>
-                        </div>
-                        <div class="game-item">
-                            <div class="game-info">
-                                <span class="game-name">Партия #2</span>
-                                <span class="game-status">Ход белых</span>
-                            </div>
-                            <div class="game-actions">
-                                <button class="btn btn-secondary btn-small">Продолжить</button>
-                                <button class="btn btn-danger btn-small">Удалить</button>
-                            </div>
-                        </div>
+                        <!-- Список игр будет генерироваться динамически -->
                     </div>
                 </div>
             </div>
@@ -83,6 +64,14 @@
                 </div>
                 
                 <div class="form-group">
+                    <label>Тип игры:</label>
+                    <div class="game-type-selector">
+                        <button id="local-game-btn" class="btn btn-secondary btn-small game-type-btn active" data-type="local">Локальная игра</button>
+                        <button id="online-game-btn" class="btn btn-secondary btn-small game-type-btn" data-type="online">Онлайн игра</button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
                     <label for="match-color">Цвет метки:</label>
                     <div class="color-picker">
                         <div class="color-option" data-color="#00d4ff" style="background: #00d4ff;"></div>
@@ -96,6 +85,41 @@
                 
                 <div class="modal-actions">
                     <button id="confirm-create" class="btn btn-primary btn-large">Создать матч</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно ожидания подключения -->
+        <div id="waiting-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <button class="close-btn waiting-close">✕</button>
+                <h2>Ожидание соперника</h2>
+                
+                <div class="waiting-info">
+                    <div class="spinner"></div>
+                    <p>Поделитесь кодом комнаты с соперником:</p>
+                    <div class="room-code-display">
+                        <span id="room-code-text"></span>
+                        <button id="copy-code-btn" class="btn btn-secondary btn-small">Копировать</button>
+                    </div>
+                    <p class="waiting-status">Ожидание подключения...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно присоединения к игре -->
+        <div id="join-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <button class="close-btn join-close">✕</button>
+                <h2>Присоединиться к игре</h2>
+                
+                <div class="form-group">
+                    <label for="room-code-input">Код комнаты:</label>
+                    <input type="text" id="room-code-input" class="form-input" placeholder="Введите код комнаты..." maxlength="6">
+                </div>
+                
+                <div class="modal-actions">
+                    <button id="confirm-join" class="btn btn-primary btn-large">Присоединиться</button>
                 </div>
             </div>
         </div>
@@ -182,6 +206,16 @@
         </div>
     </div>
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    
+    <!-- Firebase Config -->
+    <script src="firebase-config.js"></script>
+    
+    <!-- Multiplayer Manager -->
+    <script src="multiplayer.js"></script>
+    
     <script src="script.js"></script>
 </body>
 </html>

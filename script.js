@@ -37,6 +37,7 @@ let moveHistory = [];
 let editorMode = false;
 let selectedPiece = null;
 let selectedColor = '#00d4ff';
+let gameType = 'local'; // 'local' или 'online'
 
 // Навигация
 function showMainMenu() {
@@ -150,23 +151,25 @@ function clearHighlights() {
 }
 
 // Выполнение хода
-function makeMove(fromRow, fromCol, toRow, toCol) {
-    // Базовая валидация (упрощенная)
+async function makeMove(fromRow, fromCol, toRow, toCol) {
+    // Если игра онлайн, используем мультиплеерный менеджер
+    if (gameType === 'online') {
+        return await multiplayerManager.makeOnlineMove(fromRow, fromCol, toRow, toCol);
+    }
+
+    // Локальная игра
     if (fromRow === toRow && fromCol === toCol) return false;
     
     const piece = board[fromRow][fromCol];
     const targetPiece = board[toRow][toCol];
     
-    // Нельзя брать свои фигуры
     if (targetPiece && getPieceColor(targetPiece) === currentPlayer) {
         return false;
     }
     
-    // Выполнение хода
     board[toRow][toCol] = piece;
     board[fromRow][fromCol] = '';
     
-    // Добавление в историю
     const move = `${currentPlayer === 'white' ? 'Белые' : 'Черные'}: ${String.fromCharCode(97 + fromCol)}${8 - fromRow} → ${String.fromCharCode(97 + toCol)}${8 - toRow}`;
     moveHistory.push(move);
     
@@ -216,47 +219,22 @@ function resetGame() {
 
 // Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', () => {
+    // Загружаем список матчей при запуске
+    updateGamesList();
+    
     // Кнопки главного меню
     document.getElementById('play-btn').addEventListener('click', showGameSelect);
     document.getElementById('editor-btn').addEventListener('click', showEditor);
     
     // Кнопки возврата
-    document.getElementById('back-to-menu').addEventListener('click', showMainMenu);
+    document.getElementById('back-to-menu').addEventListener('click', async () => {
+        if (gameType === 'online') {
+            await multiplayerManager.leaveRoom();
+        }
+        showMainMenu();
+    });
     document.getElementById('back-from-editor').addEventListener('click', showMainMenu);
     document.getElementById('back-from-select').addEventListener('click', showMainMenu);
-    
-    // Кнопка создания игры
-    document.getElementById('create-game-btn').addEventListener('click', showCreateModal);
-    
-    // Модальное окно
-    document.querySelector('.modal-close').addEventListener('click', hideCreateModal);
-    document.getElementById('confirm-create').addEventListener('click', createMatch);
-    
-    // Выбор цвета
-    document.querySelectorAll('.color-option').forEach(option => {
-        option.addEventListener('click', function() {
-            document.querySelectorAll('.color-option').forEach(opt => {
-                opt.classList.remove('selected');
-                opt.style.border = '3px solid transparent';
-            });
-            this.classList.add('selected');
-            this.style.border = '3px solid white';
-            selectedColor = this.dataset.color;
-        });
-    });
-    
-    // Кнопки продолжения игры
-    document.querySelectorAll('.game-item button').forEach(btn => {
-        if (btn.textContent === 'Продолжить') {
-            btn.addEventListener('click', showGame);
-        } else if (btn.textContent === 'Удалить') {
-            btn.addEventListener('click', function(e) {
-                if (confirm('Вы уверены, что хотите удалить эту партию?')) {
-                    e.target.closest('.game-item').remove();
-                }
-            });
-        }
-    });
     
     // Кнопки игры
     document.getElementById('new-game').addEventListener('click', newGame);
@@ -273,6 +251,73 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.piece-btn').forEach(b => b.classList.remove('selected'));
             e.target.classList.add('selected');
             selectedPiece = e.target.dataset.piece;
+        });
+    });
+    
+    // Кнопки для модального окна создания матча
+    document.getElementById('create-game-btn').addEventListener('click', () => {
+        gameType = 'local';
+        showCreateModal();
+    });
+    
+    document.getElementById('confirm-create').addEventListener('click', createMatch);
+    
+    document.querySelectorAll('.modal-close').forEach(btn => {
+        btn.addEventListener('click', hideCreateModal);
+    });
+    
+    // Кнопки выбора типа игры
+    document.querySelectorAll('.game-type-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.game-type-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            gameType = this.dataset.type;
+        });
+    });
+    
+    // Кнопки для модального окна ожидания
+    document.querySelector('.waiting-close').addEventListener('click', async () => {
+        await multiplayerManager.leaveRoom();
+        hideWaitingModal();
+        showGameSelect();
+    });
+    
+    document.getElementById('copy-code-btn').addEventListener('click', () => {
+        const roomCode = document.getElementById('room-code-text').textContent;
+        navigator.clipboard.writeText(roomCode).then(() => {
+            const btn = document.getElementById('copy-code-btn');
+            btn.textContent = 'Скопировано!';
+            setTimeout(() => {
+                btn.textContent = 'Копировать';
+            }, 2000);
+        });
+    });
+    
+    // Кнопки для модального окна присоединения
+    document.querySelector('.join-close').addEventListener('click', hideJoinModal);
+    document.getElementById('confirm-join').addEventListener('click', joinOnlineGame);
+    
+    // Добавить кнопку "Присоединиться к игре" в выбор игр
+    const createGameSection = document.querySelector('.create-game-section');
+    const joinButton = document.createElement('button');
+    joinButton.id = 'join-game-btn';
+    joinButton.className = 'btn btn-secondary btn-large';
+    joinButton.style.marginTop = '15px';
+    joinButton.innerHTML = '<span class="btn-icon-small">🔗</span> Присоединиться к онлайн-игре';
+    joinButton.addEventListener('click', showJoinModal);
+    createGameSection.appendChild(joinButton);
+    
+    // Выбор цвета
+    document.querySelectorAll('.color-option').forEach(option => {
+        option.addEventListener('click', function() {
+            document.querySelectorAll('.color-option').forEach(opt => {
+                opt.classList.remove('selected');
+                opt.style.border = 'none';
+            });
+            this.classList.add('selected');
+            this.style.border = '3px solid white';
+            selectedColor = this.dataset.color;
+            updateModalColor(selectedColor);
         });
     });
     
@@ -338,9 +383,189 @@ function hideCreateModal() {
     document.getElementById('create-match-modal').style.display = 'none';
 }
 
-function createMatch() {
-    const matchName = document.getElementById('match-name').value || 'Партия #1';
-    console.log(`Создан матч: ${matchName}, Цвет: ${selectedColor}`);
-    hideCreateModal();
+function showWaitingModal(roomCode) {
+    document.getElementById('room-code-text').textContent = roomCode;
+    document.getElementById('waiting-modal').style.display = 'flex';
+    updateConnectionStatus('waiting');
+}
+
+function hideWaitingModal() {
+    document.getElementById('waiting-modal').style.display = 'none';
+}
+
+function showJoinModal() {
+    document.getElementById('join-modal').style.display = 'flex';
+}
+
+function hideJoinModal() {
+    document.getElementById('join-modal').style.display = 'none';
+}
+
+async function createMatch() {
+    const matchName = document.getElementById('match-name').value || `Партия #${getMatches().length + 1}`;
+    
+    if (gameType === 'online') {
+        // Создание онлайн-матча
+        try {
+            const roomCode = await multiplayerManager.createRoom(matchName, selectedColor);
+            hideCreateModal();
+            showWaitingModal(roomCode);
+            showGame();
+        } catch (error) {
+            alert('Ошибка создания онлайн-матча: ' + error.message);
+        }
+    } else {
+        // Создание локального матча
+        const match = {
+            id: Date.now(),
+            name: matchName,
+            color: selectedColor,
+            status: 'В процессе',
+            board: JSON.parse(JSON.stringify(initialBoard)),
+            currentPlayer: 'white',
+            moveHistory: [],
+            createdAt: new Date().toISOString()
+        };
+        
+        saveMatch(match);
+        loadMatch(match.id);
+        
+        document.getElementById('match-name').value = '';
+        hideCreateModal();
+        showGame();
+    }
+}
+
+async function joinOnlineGame() {
+    const roomCode = document.getElementById('room-code-input').value.trim().toUpperCase();
+    
+    if (!roomCode) {
+        alert('Введите код комнаты');
+        return;
+    }
+
+    try {
+        await multiplayerManager.joinRoom(roomCode);
+        gameType = 'online';
+        hideJoinModal();
+        showGame();
+        updateConnectionStatus('connected');
+    } catch (error) {
+        alert('Ошибка подключения: ' + error.message);
+    }
+}
+
+// Функции для работы с localStorage
+function getMatches() {
+    const matches = localStorage.getItem('chessMatches');
+    return matches ? JSON.parse(matches) : [];
+}
+
+function saveMatch(match) {
+    const matches = getMatches();
+    const existingIndex = matches.findIndex(m => m.id === match.id);
+    
+    if (existingIndex >= 0) {
+        matches[existingIndex] = match;
+    } else {
+        matches.push(match);
+    }
+    
+    localStorage.setItem('chessMatches', JSON.stringify(matches));
+    updateGamesList();
+}
+
+function loadMatch(matchId) {
+    const matches = getMatches();
+    const match = matches.find(m => m.id === matchId);
+    
+    if (match) {
+        board = JSON.parse(JSON.stringify(match.board));
+        currentPlayer = match.currentPlayer;
+        moveHistory = [...match.moveHistory];
+    }
+}
+
+function deleteMatch(matchId) {
+    const matches = getMatches();
+    const filtered = matches.filter(m => m.id !== matchId);
+    localStorage.setItem('chessMatches', JSON.stringify(filtered));
+    updateGamesList();
+}
+
+function updateGamesList() {
+    const gamesList = document.getElementById('games-list');
+    const matches = getMatches();
+    
+    if (matches.length === 0) {
+        gamesList.innerHTML = '<p style="color: #00d4ff; text-align: center; padding: 20px;">Нет активных партий</p>';
+        return;
+    }
+    
+    gamesList.innerHTML = '';
+    
+    matches.forEach(match => {
+        const gameItem = document.createElement('div');
+        gameItem.className = 'game-item';
+        gameItem.style.borderLeftColor = match.color;
+        gameItem.style.borderTopColor = match.color;
+        gameItem.style.borderRightColor = match.color;
+        gameItem.style.borderBottomColor = match.color;
+        gameItem.style.boxShadow = `0 0 15px ${match.color}4d`;
+        
+        gameItem.innerHTML = `
+            <div class="game-info">
+                <span class="game-name" style="color: ${match.color};">${match.name}</span>
+                <span class="game-status" style="color: ${match.color}99;">${match.status}</span>
+            </div>
+            <div class="game-actions">
+                <button class="btn btn-secondary btn-small" style="border-color: ${match.color}; color: ${match.color};" onclick="continueMatch(${match.id})">Продолжить</button>
+                <button class="btn btn-danger btn-small" onclick="deleteMatch(${match.id})">Удалить</button>
+            </div>
+        `;
+        
+        gamesList.appendChild(gameItem);
+    });
+}
+
+function continueMatch(matchId) {
+    loadMatch(matchId);
     showGame();
+}
+
+// Обновление цвета модального окна
+function updateModalColor(color) {
+    const modal = document.querySelector('.modal-content');
+    const h2 = modal.querySelector('h2');
+    const labels = modal.querySelectorAll('label');
+    const input = modal.querySelector('.form-input');
+    const button = modal.querySelector('.btn-primary');
+    const closeBtn = modal.querySelector('.modal-close');
+    
+    // Обновляем границу модального окна
+    modal.style.borderColor = color;
+    modal.style.boxShadow = `0 0 40px ${color}80`;
+    
+    // Обновляем заголовок
+    h2.style.color = color;
+    h2.style.textShadow = `0 0 10px ${color}99`;
+    
+    // Обновляем метки
+    labels.forEach(label => {
+        label.style.color = color;
+    });
+    
+    // Обновляем поле ввода
+    input.style.borderColor = color;
+    input.style.color = color;
+    input.style.boxShadow = `0 0 10px ${color}4d`;
+    
+    // Обновляем кнопку
+    button.style.borderColor = color;
+    button.style.color = color;
+    button.style.boxShadow = `0 0 20px ${color}80`;
+    
+    // Обновляем крестик
+    closeBtn.style.color = color;
+    closeBtn.style.borderColor = color;
 }

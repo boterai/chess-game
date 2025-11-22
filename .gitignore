@@ -1,5 +1,8 @@
 # Игнорируемые файлы и папки
 
+# Firebase конфигурация (содержит приватные ключи)
+firebase-config.js
+
 # Python
 __pycache__/
 *.py[cod]
