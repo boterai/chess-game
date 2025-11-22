@@ -478,6 +478,53 @@ function getMatches() {
     return matches ? JSON.parse(matches) : [];
 }
 
+// Получение активных онлайн-комнат из Firebase
+async function getOnlineRooms() {
+    if (!database) return [];
+    
+    try {
+        const snapshot = await database.ref('rooms').once('value');
+        const rooms = snapshot.val() || {};
+        const onlineRooms = [];
+        
+        // Получаем ID текущего игрока из сохраненных комнат
+        const savedRooms = JSON.parse(localStorage.getItem('myOnlineRooms') || '[]');
+        
+        for (const [roomCode, roomData] of Object.entries(rooms)) {
+            // Показываем комнаты, в которых участвует текущий игрок
+            const myRoom = savedRooms.find(r => r.roomCode === roomCode);
+            if (myRoom) {
+                onlineRooms.push({
+                    id: `online_${roomCode}`,
+                    roomCode: roomCode,
+                    name: roomData.matchName,
+                    color: roomData.color,
+                    status: roomData.status === 'waiting' ? 'Ожидание соперника' : 'В процессе',
+                    isOnline: true,
+                    playerId: myRoom.playerId,
+                    playerColor: myRoom.playerColor
+                });
+            }
+        }
+        
+        return onlineRooms;
+    } catch (error) {
+        console.error('Ошибка получения онлайн-комнат:', error);
+        return [];
+    }
+}
+
+// Сохранение информации об участии в онлайн-комнате
+function saveMyOnlineRoom(roomCode, playerId, playerColor) {
+    const savedRooms = JSON.parse(localStorage.getItem('myOnlineRooms') || '[]');
+    const existing = savedRooms.find(r => r.roomCode === roomCode);
+    
+    if (!existing) {
+        savedRooms.push({ roomCode, playerId, playerColor, joinedAt: Date.now() });
+        localStorage.setItem('myOnlineRooms', JSON.stringify(savedRooms));
+    }
+}
+
 function saveMatch(match) {
     const matches = getMatches();
     const existingIndex = matches.findIndex(m => m.id === match.id);
@@ -504,24 +551,35 @@ function loadMatch(matchId) {
 }
 
 function deleteMatch(matchId) {
-    const matches = getMatches();
-    const filtered = matches.filter(m => m.id !== matchId);
-    localStorage.setItem('chessMatches', JSON.stringify(filtered));
+    if (matchId.startsWith('online_')) {
+        // Удаление онлайн-комнаты из локального списка
+        const roomCode = matchId.replace('online_', '');
+        const savedRooms = JSON.parse(localStorage.getItem('myOnlineRooms') || '[]');
+        const filtered = savedRooms.filter(r => r.roomCode !== roomCode);
+        localStorage.setItem('myOnlineRooms', JSON.stringify(filtered));
+    } else {
+        // Удаление локальной игры
+        const matches = getMatches();
+        const filtered = matches.filter(m => m.id !== matchId);
+        localStorage.setItem('chessMatches', JSON.stringify(filtered));
+    }
     updateGamesList();
 }
 
-function updateGamesList() {
+async function updateGamesList() {
     const gamesList = document.getElementById('games-list');
-    const matches = getMatches();
+    const localMatches = getMatches();
+    const onlineRooms = await getOnlineRooms();
+    const allMatches = [...localMatches, ...onlineRooms];
     
-    if (matches.length === 0) {
+    if (allMatches.length === 0) {
         gamesList.innerHTML = '<p style="color: #00d4ff; text-align: center; padding: 20px;">Нет активных партий</p>';
         return;
     }
     
     gamesList.innerHTML = '';
     
-    matches.forEach(match => {
+    allMatches.forEach(match => {
         const gameItem = document.createElement('div');
         gameItem.className = 'game-item';
         gameItem.style.borderLeftColor = match.color;
@@ -530,14 +588,16 @@ function updateGamesList() {
         gameItem.style.borderBottomColor = match.color;
         gameItem.style.boxShadow = `0 0 15px ${match.color}4d`;
         
+        const matchType = match.isOnline ? '🌐' : '💻';
+        
         gameItem.innerHTML = `
             <div class="game-info">
-                <span class="game-name" style="color: ${match.color};">${match.name}</span>
+                <span class="game-name" style="color: ${match.color};">${matchType} ${match.name}</span>
                 <span class="game-status" style="color: ${match.color}99;">${match.status}</span>
             </div>
             <div class="game-actions">
-                <button class="btn btn-secondary btn-small" style="border-color: ${match.color}; color: ${match.color};" onclick="continueMatch(${match.id})">Продолжить</button>
-                <button class="btn btn-danger btn-small" onclick="deleteMatch(${match.id})">Удалить</button>
+                <button class="btn btn-secondary btn-small" style="border-color: ${match.color}; color: ${match.color};" onclick="continueMatch('${match.id}')">Продолжить</button>
+                <button class="btn btn-danger btn-small" onclick="deleteMatch('${match.id}')">Удалить</button>
             </div>
         `;
         
@@ -545,9 +605,52 @@ function updateGamesList() {
     });
 }
 
-function continueMatch(matchId) {
-    loadMatch(matchId);
-    showGame();
+async function continueMatch(matchId) {
+    if (matchId.startsWith('online_')) {
+        // Продолжение онлайн-игры
+        const roomCode = matchId.replace('online_', '');
+        const savedRooms = JSON.parse(localStorage.getItem('myOnlineRooms') || '[]');
+        const myRoom = savedRooms.find(r => r.roomCode === roomCode);
+        
+        if (myRoom) {
+            try {
+                // Восстанавливаем подключение к комнате
+                multiplayerManager.playerId = myRoom.playerId;
+                multiplayerManager.playerColor = myRoom.playerColor;
+                multiplayerManager.currentRoom = roomCode;
+                multiplayerManager.isOnline = true;
+                
+                // Загружаем данные комнаты
+                const snapshot = await database.ref(`rooms/${roomCode}`).once('value');
+                const roomData = snapshot.val();
+                
+                if (roomData) {
+                    board = roomData.board;
+                    currentPlayer = roomData.currentPlayer;
+                    moveHistory = roomData.moveHistory || [];
+                    gameType = 'online';
+                    
+                    // Обновляем статус подключения
+                    await database.ref(`rooms/${roomCode}/players/${myRoom.playerColor}/connected`).set(true);
+                    
+                    multiplayerManager.listenToRoom(roomCode);
+                    showGame();
+                    updateConnectionStatus();
+                } else {
+                    alert('Комната не найдена или была удалена');
+                    deleteMatch(matchId);
+                }
+            } catch (error) {
+                console.error('Ошибка подключения к комнате:', error);
+                alert('Ошибка подключения к игре: ' + error.message);
+            }
+        }
+    } else {
+        // Продолжение локальной игры
+        loadMatch(matchId);
+        gameType = 'local';
+        showGame();
+    }
 }
 
 // Обновление цвета модального окна

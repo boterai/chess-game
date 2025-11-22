@@ -50,6 +50,12 @@ class MultiplayerManager {
             await database.ref(`rooms/${roomCode}`).set(roomData);
             this.currentRoom = roomCode;
             this.listenToRoom(roomCode);
+            
+            // Сохраняем информацию об участии в комнате
+            if (typeof saveMyOnlineRoom !== 'undefined') {
+                saveMyOnlineRoom(roomCode, this.playerId, this.playerColor);
+            }
+            
             return roomCode;
         } catch (error) {
             console.error('Ошибка создания комнаты:', error);
@@ -91,6 +97,12 @@ class MultiplayerManager {
             await database.ref(`rooms/${roomCode}/status`).set('playing');
 
             this.listenToRoom(roomCode);
+            
+            // Сохраняем информацию об участии в комнате
+            if (typeof saveMyOnlineRoom !== 'undefined') {
+                saveMyOnlineRoom(roomCode, this.playerId, this.playerColor);
+            }
+            
             return roomData;
         } catch (error) {
             console.error('Ошибка присоединения к комнате:', error);
