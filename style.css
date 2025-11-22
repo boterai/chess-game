@@ -70,32 +70,34 @@ main {
     min-width: auto;
     padding: 40px 30px;
     background: transparent;
-    color: #4a90e2;
-    border: 3px solid #4a90e2;
+    color: #0080ff;
+    border: 3px solid #0080ff;
     border-radius: 15px;
     cursor: pointer;
     transition: all 0.3s;
-    box-shadow: none;
+    box-shadow: 0 0 20px rgba(0, 128, 255, 0.5);
 }
 
 .menu-btn:hover {
-    background: rgba(74, 144, 226, 0.1);
+    background: rgba(0, 128, 255, 0.1);
     transform: translateY(-5px);
-    box-shadow: 0 10px 30px rgba(74, 144, 226, 0.3);
+    box-shadow: 0 0 40px rgba(0, 128, 255, 0.8), 0 10px 30px rgba(0, 128, 255, 0.6);
 }
 
 .btn-icon {
     display: block;
     font-size: 4em;
     margin-bottom: 15px;
-    color: #4a90e2;
+    color: #0080ff;
+    filter: drop-shadow(0 0 10px rgba(0, 128, 255, 0.8));
 }
 
 .btn-text {
     display: block;
     font-size: 1.5em;
     font-weight: bold;
-    color: #4a90e2;
+    color: #0080ff;
+    text-shadow: 0 0 10px rgba(0, 128, 255, 0.6);
 }
 
 .back-button-container {
