@@ -224,7 +224,15 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Кнопки продолжения игры
     document.querySelectorAll('.game-item button').forEach(btn => {
-        btn.addEventListener('click', showGame);
+        if (btn.textContent === 'Продолжить') {
+            btn.addEventListener('click', showGame);
+        } else if (btn.textContent === 'Удалить') {
+            btn.addEventListener('click', function(e) {
+                if (confirm('Вы уверены, что хотите удалить эту партию?')) {
+                    e.target.closest('.game-item').remove();
+                }
+            });
+        }
     });
     
     // Кнопки игры
