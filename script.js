@@ -411,7 +411,9 @@ function hideCreateModal() {
     document.getElementById('create-match-modal').style.display = 'none';
 }
 
-function showWaitingModal(roomCode) {
+function showWaitingModal(roomCodeOrObject) {
+    // Поддерживаем как строку так и объект с roomCode
+    const roomCode = typeof roomCodeOrObject === 'string' ? roomCodeOrObject : roomCodeOrObject.roomCode;
     document.getElementById('room-code-text').textContent = roomCode;
     document.getElementById('waiting-modal').style.display = 'flex';
     updateConnectionStatus('waiting');
@@ -437,9 +439,16 @@ async function createMatch() {
         // Используем PeerJS вместо Firebase
         try {
             console.log('Создание P2P онлайн-матча...');
-            const roomCode = await peerMultiplayer.createRoom(matchName, selectedColor);
+            const result = await peerMultiplayer.createRoom(matchName, selectedColor);
+            console.log('Комната создана:', result);
+            
+            // Обновляем список через 1 секунду чтобы комната появилась
+            setTimeout(() => {
+                updateGamesList();
+            }, 1000);
+            
             hideCreateModal();
-            showWaitingModal(roomCode);
+            showWaitingModal(result.roomCode);
             showGame();
         } catch (error) {
             console.error('Ошибка создания P2P матча:', error);

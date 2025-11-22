@@ -58,8 +58,15 @@ class PeerMultiplayerManager {
             await this.initialize();
         }
 
+        // Ждём пока peerId будет точно доступен
+        if (!this.peerId) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
         this.isHost = true;
         this.playerColor = 'white';
+
+        console.log('Creating room with ID:', this.peerId);
 
         // Регистрируем комнату в Firebase Realtime Database
         try {
@@ -71,13 +78,15 @@ class PeerMultiplayerManager {
                 lastSeen: Date.now()
             };
             
-            await fetch(`${FIREBASE_DB_URL}/rooms/${this.peerId}.json`, {
+            const response = await fetch(`${FIREBASE_DB_URL}/rooms/${this.peerId}.json`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(roomData)
             });
+            
+            console.log('Room registered in Firebase:', await response.text());
         } catch (error) {
             console.error('Error registering room:', error);
         }
@@ -308,6 +317,8 @@ class PeerMultiplayerManager {
             }
             const roomsData = await response.json();
             
+            console.log('Fetched rooms from Firebase:', roomsData);
+            
             if (!roomsData) return [];
             
             const now = Date.now();
@@ -315,6 +326,7 @@ class PeerMultiplayerManager {
             
             // Фильтруем активные комнаты (обновлялись менее 2 минут назад)
             for (const [roomCode, roomInfo] of Object.entries(roomsData)) {
+                console.log('Checking room:', roomCode, roomInfo);
                 if (roomInfo.status === 'waiting' && (now - roomInfo.lastSeen) < 120000) {
                     rooms.push({
                         roomCode,
@@ -325,6 +337,7 @@ class PeerMultiplayerManager {
                 }
             }
             
+            console.log('Available rooms:', rooms);
             return rooms;
         } catch (error) {
             console.error('Error fetching rooms:', error);
