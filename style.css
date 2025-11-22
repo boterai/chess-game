@@ -41,6 +41,7 @@ main {
     border-radius: 20px;
     padding: 40px;
     box-shadow: 0 10px 50px rgba(0, 0, 0, 0.2);
+    margin: 20px;
 }
 
 /* Главное меню */
@@ -337,6 +338,7 @@ footer {
     border-radius: 20px;
     padding: 40px;
     box-shadow: 0 10px 50px rgba(0, 0, 0, 0.2);
+    margin: 20px;
 }
 
 .editor-section h2 {
