@@ -219,6 +219,19 @@ function resetGame() {
 
 // Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', () => {
+    // ТЕСТ: Добавляем тестовую комнату напрямую
+    const testRoom = {
+        'test-123': {
+            roomCode: 'test-123',
+            matchName: 'Тестовая партия',
+            color: '#ff0000',
+            status: 'waiting',
+            lastSeen: Date.now()
+        }
+    };
+    localStorage.setItem('globalChessRooms', JSON.stringify(testRoom));
+    console.log('TEST: Добавлена тестовая комната:', testRoom);
+    
     // Очищаем старые комнаты при загрузке
     PeerMultiplayerManager.cleanupOldRooms();
     
