@@ -54,61 +54,75 @@ class PeerMultiplayerManager {
 
     // Создание новой игровой комнаты с регистрацией в JSONBin
     async createRoom(matchName, color) {
-        if (!this.peer) {
-            await this.initialize();
-        }
-
-        // Ждём пока peerId будет точно доступен
-        if (!this.peerId) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-        }
-
-        this.isHost = true;
-        this.playerColor = 'white';
-
-        console.log('Creating room with ID:', this.peerId);
-
-        // Регистрируем комнату
         try {
-            // Получаем текущий список комнат
-            const currentRooms = await this.getCurrentRooms();
+            console.log('createRoom called with:', matchName, color);
             
-            // Добавляем новую комнату
-            currentRooms[this.peerId] = {
+            if (!this.peer) {
+                console.log('Initializing peer...');
+                await this.initialize();
+            }
+
+            // Ждём пока peerId будет точно доступен
+            if (!this.peerId) {
+                console.log('Waiting for peerId...');
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+            this.isHost = true;
+            this.playerColor = 'white';
+
+            console.log('Creating room with ID:', this.peerId);
+
+            // Регистрируем комнату
+            try {
+                // Получаем текущий список комнат
+                console.log('Getting current rooms...');
+                const currentRooms = await this.getCurrentRooms();
+                console.log('Current rooms:', currentRooms);
+                
+                // Добавляем новую комнату
+                currentRooms[this.peerId] = {
+                    roomCode: this.peerId,
+                    matchName: matchName,
+                    color: color,
+                    status: 'waiting',
+                    lastSeen: Date.now()
+                };
+                
+                // Сохраняем обратно
+                console.log('Saving rooms...');
+                const saved = await this.saveRooms(currentRooms);
+                console.log('Rooms saved:', saved);
+                
+                console.log('Room registered successfully');
+            } catch (error) {
+                console.error('Error registering room:', error);
+                throw error;
+            }
+            
+            // Сохраняем в свои комнаты
+            const myRooms = JSON.parse(localStorage.getItem('myOnlineRooms') || '[]');
+            myRooms.push({
                 roomCode: this.peerId,
                 matchName: matchName,
                 color: color,
-                status: 'waiting',
-                lastSeen: Date.now()
+                playerId: this.peerId,
+                playerColor: 'white'
+            });
+            localStorage.setItem('myOnlineRooms', JSON.stringify(myRooms));
+
+            // Запускаем heartbeat для поддержания комнаты активной
+            this.startHeartbeat();
+
+            return {
+                roomCode: this.peerId,
+                playerId: this.peerId,
+                playerColor: 'white'
             };
-            
-            // Сохраняем обратно
-            await this.saveRooms(currentRooms);
-            
-            console.log('Room registered successfully');
         } catch (error) {
-            console.error('Error registering room:', error);
+            console.error('createRoom failed:', error);
+            throw error;
         }
-        
-        // Сохраняем в свои комнаты
-        const myRooms = JSON.parse(localStorage.getItem('myOnlineRooms') || '[]');
-        myRooms.push({
-            roomCode: this.peerId,
-            matchName: matchName,
-            color: color,
-            playerId: this.peerId,
-            playerColor: 'white'
-        });
-        localStorage.setItem('myOnlineRooms', JSON.stringify(myRooms));
-
-        // Запускаем heartbeat для поддержания комнаты активной
-        this.startHeartbeat();
-
-        return {
-            roomCode: this.peerId,
-            playerId: this.peerId,
-            playerColor: 'white'
-        };
     }
 
     // Вспомогательные методы для работы с JSONBin
