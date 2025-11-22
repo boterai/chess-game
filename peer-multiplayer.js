@@ -1,4 +1,7 @@
-// P2P Мультиплеер с автоматическим обнаружением комнат через localStorage
+// P2P Мультиплеер с глобальным обнаружением комнат через Firebase Realtime Database
+// Используем публичную демо-базу Firebase (без необходимости настройки)
+const FIREBASE_DB_URL = 'https://chess-rooms-default-rtdb.firebaseio.com';
+
 class PeerMultiplayerManager {
     constructor() {
         this.peer = null;
@@ -49,7 +52,7 @@ class PeerMultiplayerManager {
         });
     }
 
-    // Создание новой игровой комнаты с автоматической регистрацией
+    // Создание новой игровой комнаты с регистрацией в Firebase
     async createRoom(matchName, color) {
         if (!this.peer) {
             await this.initialize();
@@ -58,17 +61,26 @@ class PeerMultiplayerManager {
         this.isHost = true;
         this.playerColor = 'white';
 
-        // Регистрируем комнату в глобальном списке
-        const roomData = {
-            roomCode: this.peerId,
-            matchName: matchName,
-            color: color,
-            status: 'waiting',
-            lastSeen: Date.now(),
-            createdAt: Date.now()
-        };
-
-        this.registerRoom(roomData);
+        // Регистрируем комнату в Firebase Realtime Database
+        try {
+            const roomData = {
+                roomCode: this.peerId,
+                matchName: matchName,
+                color: color,
+                status: 'waiting',
+                lastSeen: Date.now()
+            };
+            
+            await fetch(`${FIREBASE_DB_URL}/rooms/${this.peerId}.json`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(roomData)
+            });
+        } catch (error) {
+            console.error('Error registering room:', error);
+        }
         
         // Сохраняем в свои комнаты
         const myRooms = JSON.parse(localStorage.getItem('myOnlineRooms') || '[]');
@@ -91,47 +103,58 @@ class PeerMultiplayerManager {
         };
     }
 
-    // Регистрация комнаты в глобальном списке
+    // Регистрация комнаты (больше не используется, заменено на Firebase)
     registerRoom(roomData) {
-        const availableRooms = JSON.parse(localStorage.getItem('availableChessRooms') || '[]');
-        
-        // Удаляем старую запись если есть
-        const filtered = availableRooms.filter(r => r.roomCode !== roomData.roomCode);
-        
-        // Добавляем новую
-        filtered.push(roomData);
-        
-        localStorage.setItem('availableChessRooms', JSON.stringify(filtered));
-        
-        // Оповещаем другие вкладки
-        window.dispatchEvent(new CustomEvent('chessRoomsUpdated'));
+        // Оставляем для обратной совместимости
     }
 
-    // Обновление статуса комнаты
-    updateRoomStatus(status) {
-        const availableRooms = JSON.parse(localStorage.getItem('availableChessRooms') || '[]');
-        const room = availableRooms.find(r => r.roomCode === this.roomCode);
+    // Обновление статуса комнаты в Firebase
+    async updateRoomStatus(status) {
+        if (!this.roomCode) return;
         
-        if (room) {
-            room.status = status;
-            room.lastSeen = Date.now();
-            localStorage.setItem('availableChessRooms', JSON.stringify(availableRooms));
-            window.dispatchEvent(new CustomEvent('chessRoomsUpdated'));
+        try {
+            await fetch(`${FIREBASE_DB_URL}/rooms/${this.roomCode}/status.json`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(status)
+            });
+            
+            await fetch(`${FIREBASE_DB_URL}/rooms/${this.roomCode}/lastSeen.json`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(Date.now())
+            });
+        } catch (error) {
+            console.error('Error updating room status:', error);
         }
     }
 
-    // Heartbeat для поддержания комнаты активной
+    // Heartbeat для поддержания комнаты активной в Firebase
     startHeartbeat() {
-        // Обновляем каждые 5 секунд
-        this.heartbeatInterval = setInterval(() => {
-            const availableRooms = JSON.parse(localStorage.getItem('availableChessRooms') || '[]');
-            const room = availableRooms.find(r => r.roomCode === this.roomCode);
-            
-            if (room) {
-                room.lastSeen = Date.now();
-                localStorage.setItem('availableChessRooms', JSON.stringify(availableRooms));
+        // Обновляем каждые 10 секунд
+        this.heartbeatInterval = setInterval(async () => {
+            if (this.roomCode) {
+                try {
+                    const status = this.isConnected ? 'playing' : 'waiting';
+                    await fetch(`${FIREBASE_DB_URL}/rooms/${this.roomCode}.json`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            status: status,
+                            lastSeen: Date.now()
+                        })
+                    });
+                } catch (error) {
+                    console.error('Heartbeat error:', error);
+                }
             }
-        }, 5000);
+        }, 10000);
     }
 
     // Остановка heartbeat
@@ -142,16 +165,19 @@ class PeerMultiplayerManager {
         }
     }
 
-    // Удаление комнаты из списка
-    unregisterRoom() {
+    // Удаление комнаты из Firebase
+    async unregisterRoom() {
         if (!this.roomCode) return;
         
-        const availableRooms = JSON.parse(localStorage.getItem('availableChessRooms') || '[]');
-        const filtered = availableRooms.filter(r => r.roomCode !== this.roomCode);
-        localStorage.setItem('availableChessRooms', JSON.stringify(filtered));
+        try {
+            await fetch(`${FIREBASE_DB_URL}/rooms/${this.roomCode}.json`, {
+                method: 'DELETE'
+            });
+        } catch (error) {
+            console.error('Error unregistering room:', error);
+        }
         
         this.stopHeartbeat();
-        window.dispatchEvent(new CustomEvent('chessRoomsUpdated'));
     }
 
     // Присоединение к комнате по коду
@@ -255,8 +281,8 @@ class PeerMultiplayerManager {
     }
 
     // Отключение
-    disconnect() {
-        this.unregisterRoom();
+    async disconnect() {
+        await this.unregisterRoom();
         
         if (this.connection) {
             this.connection.close();
@@ -273,28 +299,71 @@ class PeerMultiplayerManager {
         this.playerColor = null;
     }
 
-    // Статический метод для получения всех доступных комнат
-    static getAvailableRooms() {
-        const rooms = JSON.parse(localStorage.getItem('availableChessRooms') || '[]');
-        const now = Date.now();
-        
-        // Фильтруем комнаты, которые не обновлялись более 30 секунд
-        const activeRooms = rooms.filter(room => {
-            return (now - room.lastSeen) < 30000 && room.status === 'waiting';
-        });
-        
-        // Обновляем список
-        if (activeRooms.length !== rooms.length) {
-            localStorage.setItem('availableChessRooms', JSON.stringify(activeRooms));
+    // Статический метод для получения всех доступных комнат из Firebase
+    static async getAvailableRooms() {
+        try {
+            const response = await fetch(`${FIREBASE_DB_URL}/rooms.json`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch rooms');
+            }
+            const roomsData = await response.json();
+            
+            if (!roomsData) return [];
+            
+            const now = Date.now();
+            const rooms = [];
+            
+            // Фильтруем активные комнаты (обновлялись менее 2 минут назад)
+            for (const [roomCode, roomInfo] of Object.entries(roomsData)) {
+                if (roomInfo.status === 'waiting' && (now - roomInfo.lastSeen) < 120000) {
+                    rooms.push({
+                        roomCode,
+                        matchName: roomInfo.matchName,
+                        color: roomInfo.color,
+                        status: roomInfo.status
+                    });
+                }
+            }
+            
+            return rooms;
+        } catch (error) {
+            console.error('Error fetching rooms:', error);
+            return [];
         }
-        
-        return activeRooms;
     }
 
-    // Очистка всех комнат
-    static clearAllRooms() {
-        localStorage.removeItem('availableChessRooms');
-        window.dispatchEvent(new CustomEvent('chessRoomsUpdated'));
+    // Очистка старых комнат из Firebase (вызывается автоматически при загрузке)
+    static async cleanupOldRooms() {
+        try {
+            const response = await fetch(`${FIREBASE_DB_URL}/rooms.json`);
+            const roomsData = await response.json();
+            
+            if (!roomsData) return;
+            
+            const now = Date.now();
+            
+            for (const [roomCode, roomInfo] of Object.entries(roomsData)) {
+                // Удаляем комнаты старше 2 минут
+                if ((now - roomInfo.lastSeen) >= 120000) {
+                    await fetch(`${FIREBASE_DB_URL}/rooms/${roomCode}.json`, {
+                        method: 'DELETE'
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error cleaning up rooms:', error);
+        }
+    }
+
+    // Очистка всех комнат (для отладки)
+    static async clearAllRooms() {
+        try {
+            await fetch(`${FIREBASE_DB_URL}/rooms.json`, {
+                method: 'DELETE'
+            });
+        } catch (error) {
+            console.error('Error clearing rooms:', error);
+        }
     }
 }
 

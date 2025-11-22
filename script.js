@@ -219,6 +219,9 @@ function resetGame() {
 
 // Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', () => {
+    // Очищаем старые комнаты при загрузке
+    PeerMultiplayerManager.cleanupOldRooms();
+    
     // Загружаем список матчей при запуске
     updateGamesList();
     
@@ -494,10 +497,10 @@ function getMatches() {
     return matches ? JSON.parse(matches) : [];
 }
 
-// Получение активных онлайн-комнат из localStorage (для P2P)
+// Получение активных онлайн-комнат с глобального сервера
 async function getOnlineRooms() {
-    // Получаем все доступные комнаты
-    const availableRooms = PeerMultiplayerManager.getAvailableRooms();
+    // Получаем все доступные комнаты с сервера
+    const availableRooms = await PeerMultiplayerManager.getAvailableRooms();
     const savedRooms = JSON.parse(localStorage.getItem('myOnlineRooms') || '[]');
     const onlineRooms = [];
     
@@ -511,12 +514,12 @@ async function getOnlineRooms() {
             roomCode: room.roomCode,
             name: room.matchName || `Партия ${room.roomCode.substring(6)}`,
             color: room.color || '#00d4ff',
-            status: room.status === 'waiting' ? 'Ожидание соперника' : 'В процессе',
+            status: 'Ожидание соперника',
             isOnline: true,
             isParticipant: isParticipant,
             playerId: myRoom?.playerId,
             playerColor: myRoom?.playerColor,
-            canJoin: room.status === 'waiting' && !isParticipant
+            canJoin: !isParticipant
         });
     });
     
