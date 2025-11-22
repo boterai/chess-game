@@ -274,6 +274,14 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.game-type-btn').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
             gameType = this.dataset.type;
+            
+            // Показываем предупреждение если выбран онлайн-режим без Firebase
+            if (gameType === 'online' && !database) {
+                this.classList.remove('active');
+                document.querySelector('[data-type="local"]').classList.add('active');
+                gameType = 'local';
+                alert('⚠️ Онлайн-режим недоступен\n\nFirebase не настроен. Смотрите FIREBASE_SETUP.md для инструкций.\n\nИспользуйте локальный режим.');
+            }
         });
     });
     
@@ -336,6 +344,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     updateDisplay();
+    
+    // Проверяем доступность Firebase и отключаем онлайн-режим если не настроен
+    if (!database) {
+        const onlineBtn = document.getElementById('online-game-btn');
+        if (onlineBtn) {
+            onlineBtn.disabled = true;
+            onlineBtn.style.opacity = '0.3';
+            onlineBtn.style.cursor = 'not-allowed';
+            onlineBtn.title = 'Firebase не настроен. Смотрите FIREBASE_SETUP.md';
+        }
+    }
     
     // Автоматическое обновление списка онлайн-комнат каждые 5 секунд
     setInterval(() => {
@@ -428,6 +447,12 @@ async function createMatch() {
     const matchName = document.getElementById('match-name').value || `Партия #${getMatches().length + 1}`;
     
     if (gameType === 'online') {
+        // Проверяем доступность Firebase
+        if (!database) {
+            alert('Firebase не настроен!\n\nДля использования онлайн-режима:\n1. Следуйте инструкциям в FIREBASE_SETUP.md\n2. Создайте файл firebase-config.js с вашими данными\n\nИспользуйте локальный режим для игры без настройки.');
+            return;
+        }
+        
         // Создание онлайн-матча
         try {
             console.log('Создание онлайн-матча...');
@@ -437,7 +462,7 @@ async function createMatch() {
             showGame();
         } catch (error) {
             console.error('Ошибка онлайн-матча:', error);
-            alert('Ошибка создания онлайн-матча: ' + error.message);
+            alert('Ошибка создания онлайн-матча:\n' + error.message + '\n\nПроверьте настройки Firebase в firebase-config.js');
         }
     } else {
         // Создание локального матча
