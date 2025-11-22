@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P Test - Синхронизация квадратика</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #000;
+            color: #00d4ff;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        h1 {
+            margin: 0;
+        }
+
+        .status {
+            padding: 10px 20px;
+            background: #111;
+            border: 1px solid #00d4ff;
+            border-radius: 5px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #00d4ff;
+            border: none;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background: #00ffff;
+        }
+
+        input {
+            padding: 10px;
+            background: #111;
+            border: 1px solid #00d4ff;
+            color: #00d4ff;
+            border-radius: 5px;
+        }
+
+        #square {
+            width: 200px;
+            height: 200px;
+            background: red;
+            cursor: pointer;
+            border: 3px solid #fff;
+            border-radius: 10px;
+            transition: background 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        #square:hover {
+            transform: scale(1.05);
+        }
+
+        .info {
+            background: #111;
+            padding: 20px;
+            border: 1px solid #00d4ff;
+            border-radius: 5px;
+            max-width: 600px;
+        }
+
+        .log {
+            background: #111;
+            padding: 10px;
+            border: 1px solid #00d4ff;
+            border-radius: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            width: 600px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔗 P2P Тест - Синхронизация квадратика</h1>
+    
+    <div class="status" id="status">
+        Статус: Не подключено
+    </div>
+
+    <div class="controls">
+        <button id="createBtn" onclick="createRoom()">Создать комнату</button>
+        <input type="text" id="roomInput" placeholder="Код комнаты" style="width: 150px;">
+        <button id="joinBtn" onclick="joinRoom()">Присоединиться</button>
+    </div>
+
+    <div class="info">
+        <strong>Ваш ID:</strong> <span id="myId">Загрузка...</span><br>
+        <strong>Код комнаты:</strong> <span id="roomCode">-</span><br>
+        <strong>Соединение:</strong> <span id="connection">-</span>
+    </div>
+
+    <div id="square" onclick="toggleSquare()">
+        Кликни меня!
+    </div>
+
+    <div class="log" id="log"></div>
+
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script>
+        let peer = null;
+        let conn = null;
+        let isGreen = false;
+        let myPeerId = null;
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        // Инициализация PeerJS
+        function initPeer() {
+            return new Promise((resolve, reject) => {
+                const customId = 'test-' + Math.floor(Math.random() * 900 + 100);
+                peer = new Peer(customId);
+
+                peer.on('open', (id) => {
+                    myPeerId = id;
+                    document.getElementById('myId').textContent = id;
+                    log('✅ PeerJS инициализирован. ID: ' + id);
+                    resolve(id);
+                });
+
+                peer.on('error', (err) => {
+                    log('❌ Ошибка PeerJS: ' + err.message);
+                    reject(err);
+                });
+
+                peer.on('connection', (incoming) => {
+                    log('📥 Входящее соединение от: ' + incoming.peer);
+                    setupConnection(incoming);
+                });
+            });
+        }
+
+        function setupConnection(connection) {
+            conn = connection;
+
+            conn.on('open', () => {
+                log('✅ Соединение установлено!');
+                document.getElementById('status').textContent = 'Статус: Подключено ✅';
+                document.getElementById('status').style.borderColor = '#0f0';
+                document.getElementById('connection').textContent = conn.peer;
+                
+                // Отправляем текущее состояние
+                sendState();
+            });
+
+            conn.on('data', (data) => {
+                log('📨 Получены данные: ' + JSON.stringify(data));
+                
+                if (data.type === 'toggle') {
+                    isGreen = data.isGreen;
+                    updateSquare();
+                }
+            });
+
+            conn.on('close', () => {
+                log('⚠️ Соединение закрыто');
+                document.getElementById('status').textContent = 'Статус: Отключено';
+                document.getElementById('status').style.borderColor = '#f00';
+                conn = null;
+            });
+
+            conn.on('error', (err) => {
+                log('❌ Ошибка соединения: ' + err);
+            });
+        }
+
+        async function createRoom() {
+            try {
+                if (!peer) {
+                    await initPeer();
+                }
+
+                document.getElementById('roomCode').textContent = myPeerId;
+                document.getElementById('status').textContent = 'Статус: Ожидание подключения...';
+                document.getElementById('status').style.borderColor = '#ff0';
+                
+                log('🎯 Комната создана! Код: ' + myPeerId);
+                log('📋 Отправьте этот код другу для подключения');
+            } catch (error) {
+                log('❌ Ошибка создания комнаты: ' + error.message);
+                alert('Ошибка: ' + error.message);
+            }
+        }
+
+        async function joinRoom() {
+            try {
+                const roomCode = document.getElementById('roomInput').value.trim();
+                
+                if (!roomCode) {
+                    alert('Введите код комнаты!');
+                    return;
+                }
+
+                if (!peer) {
+                    await initPeer();
+                }
+
+                log('🔌 Подключение к комнате: ' + roomCode);
+                document.getElementById('status').textContent = 'Статус: Подключение...';
+                document.getElementById('status').style.borderColor = '#ff0';
+
+                conn = peer.connect(roomCode);
+                setupConnection(conn);
+                
+                document.getElementById('roomCode').textContent = roomCode;
+            } catch (error) {
+                log('❌ Ошибка подключения: ' + error.message);
+                alert('Ошибка: ' + error.message);
+            }
+        }
+
+        function toggleSquare() {
+            isGreen = !isGreen;
+            updateSquare();
+            sendState();
+        }
+
+        function updateSquare() {
+            const square = document.getElementById('square');
+            square.style.background = isGreen ? 'green' : 'red';
+            square.textContent = isGreen ? 'Зелёный!' : 'Красный!';
+            log('🎨 Квадрат изменён на: ' + (isGreen ? 'зелёный' : 'красный'));
+        }
+
+        function sendState() {
+            if (conn && conn.open) {
+                const data = {
+                    type: 'toggle',
+                    isGreen: isGreen
+                };
+                conn.send(data);
+                log('📤 Отправлено состояние: ' + (isGreen ? 'зелёный' : 'красный'));
+            } else {
+                log('⚠️ Нет активного соединения для отправки');
+            }
+        }
+
+        // Автоинициализация при загрузке
+        window.addEventListener('load', () => {
+            log('🚀 Страница загружена');
+            log('💡 Создайте комнату или присоединитесь к существующей');
+        });
+    </script>
+</body>
+</html>
