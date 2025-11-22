@@ -418,6 +418,10 @@ footer {
     box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
 }
 
+.btn-large * {
+    color: #00d4ff;
+}
+
 .btn-large:hover {
     background: rgba(0, 212, 255, 0.1);
     box-shadow: 0 0 40px rgba(0, 212, 255, 0.8);
