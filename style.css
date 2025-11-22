@@ -431,7 +431,7 @@ footer {
 .btn-icon-small {
     margin-right: 10px;
     font-size: 1.2em;
-    color: #00d4ff;
+    color: #00d4ff !important;
 }
 
 .ongoing-games-section h3 {
