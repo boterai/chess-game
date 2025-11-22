@@ -6,7 +6,7 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #000000;
     min-height: 100vh;
     color: #333;
 }
@@ -44,10 +44,10 @@ main {
 
 /* Главное меню */
 .main-menu {
-    background: white;
-    border-radius: 20px;
+    background: transparent;
+    border-radius: 0;
     padding: 60px 40px;
-    box-shadow: 0 10px 50px rgba(0, 0, 0, 0.2);
+    box-shadow: none;
     text-align: center;
 }
 
