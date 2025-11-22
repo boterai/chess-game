@@ -53,16 +53,17 @@ main {
 
 .menu-buttons {
     display: flex;
+    flex-direction: column;
     gap: 30px;
     justify-content: center;
-    flex-wrap: wrap;
-    max-width: 800px;
+    align-items: center;
+    max-width: 500px;
     margin: 0 auto;
 }
 
 .menu-btn {
-    flex: 1;
-    min-width: 250px;
+    width: 100%;
+    min-width: auto;
     padding: 40px 30px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
