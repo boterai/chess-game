@@ -152,9 +152,9 @@ function clearHighlights() {
 
 // Выполнение хода
 async function makeMove(fromRow, fromCol, toRow, toCol) {
-    // Если игра онлайн, используем мультиплеерный менеджер
+    // Если игра онлайн, используем P2P мультиплеер
     if (gameType === 'online') {
-        return await multiplayerManager.makeOnlineMove(fromRow, fromCol, toRow, toCol);
+        return await peerMultiplayer.makeOnlineMove(fromRow, fromCol, toRow, toCol);
     }
 
     // Локальная игра
@@ -229,7 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Кнопки возврата
     document.getElementById('back-to-menu').addEventListener('click', async () => {
         if (gameType === 'online') {
-            await multiplayerManager.leaveRoom();
+            peerMultiplayer.disconnect();
         }
         showMainMenu();
     });
@@ -274,14 +274,6 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.game-type-btn').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
             gameType = this.dataset.type;
-            
-            // Показываем предупреждение если выбран онлайн-режим без Firebase
-            if (gameType === 'online' && !database) {
-                this.classList.remove('active');
-                document.querySelector('[data-type="local"]').classList.add('active');
-                gameType = 'local';
-                alert('⚠️ Онлайн-режим недоступен\n\nFirebase не настроен. Смотрите FIREBASE_SETUP.md для инструкций.\n\nИспользуйте локальный режим.');
-            }
         });
     });
     
@@ -345,16 +337,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     updateDisplay();
     
-    // Проверяем доступность Firebase и отключаем онлайн-режим если не настроен
-    if (!database) {
-        const onlineBtn = document.getElementById('online-game-btn');
-        if (onlineBtn) {
-            onlineBtn.disabled = true;
-            onlineBtn.style.opacity = '0.3';
-            onlineBtn.style.cursor = 'not-allowed';
-            onlineBtn.title = 'Firebase не настроен. Смотрите FIREBASE_SETUP.md';
-        }
-    }
+    // Онлайн-режим теперь всегда доступен через PeerJS
+    console.log('PeerJS мультиплеер готов к использованию');
     
     // Автоматическое обновление списка онлайн-комнат каждые 5 секунд
     setInterval(() => {
@@ -447,22 +431,16 @@ async function createMatch() {
     const matchName = document.getElementById('match-name').value || `Партия #${getMatches().length + 1}`;
     
     if (gameType === 'online') {
-        // Проверяем доступность Firebase
-        if (!database) {
-            alert('Firebase не настроен!\n\nДля использования онлайн-режима:\n1. Следуйте инструкциям в FIREBASE_SETUP.md\n2. Создайте файл firebase-config.js с вашими данными\n\nИспользуйте локальный режим для игры без настройки.');
-            return;
-        }
-        
-        // Создание онлайн-матча
+        // Используем PeerJS вместо Firebase
         try {
-            console.log('Создание онлайн-матча...');
-            const roomCode = await multiplayerManager.createRoom(matchName, selectedColor);
+            console.log('Создание P2P онлайн-матча...');
+            const roomCode = await peerMultiplayer.createRoom(matchName, selectedColor);
             hideCreateModal();
             showWaitingModal(roomCode);
             showGame();
         } catch (error) {
-            console.error('Ошибка онлайн-матча:', error);
-            alert('Ошибка создания онлайн-матча:\n' + error.message + '\n\nПроверьте настройки Firebase в firebase-config.js');
+            console.error('Ошибка создания P2P матча:', error);
+            alert('Ошибка создания онлайн-матча:\n' + error.message);
         }
     } else {
         // Создание локального матча
@@ -499,7 +477,7 @@ async function joinOnlineGame() {
 
 async function joinRoomByCode(roomCode) {
     try {
-        await multiplayerManager.joinRoom(roomCode);
+        await peerMultiplayer.joinRoom(roomCode);
         gameType = 'online';
         hideJoinModal();
         showGame();
@@ -516,43 +494,28 @@ function getMatches() {
     return matches ? JSON.parse(matches) : [];
 }
 
-// Получение активных онлайн-комнат из Firebase
+// Получение активных онлайн-комнат из localStorage (для P2P)
 async function getOnlineRooms() {
-    if (!database) return [];
+    // В P2P режиме показываем только комнаты, в которых участвуем
+    const savedRooms = JSON.parse(localStorage.getItem('myOnlineRooms') || '[]');
+    const onlineRooms = [];
     
-    try {
-        const snapshot = await database.ref('rooms').once('value');
-        const rooms = snapshot.val() || {};
-        const onlineRooms = [];
-        
-        // Получаем ID текущего игрока из сохраненных комнат
-        const savedRooms = JSON.parse(localStorage.getItem('myOnlineRooms') || '[]');
-        
-        for (const [roomCode, roomData] of Object.entries(rooms)) {
-            // Проверяем, является ли пользователь участником этой комнаты
-            const myRoom = savedRooms.find(r => r.roomCode === roomCode);
-            const isParticipant = myRoom !== undefined;
-            
-            // Показываем все комнаты, но отмечаем свои
-            onlineRooms.push({
-                id: `online_${roomCode}`,
-                roomCode: roomCode,
-                name: roomData.matchName,
-                color: roomData.color,
-                status: roomData.status === 'waiting' ? 'Ожидание соперника' : 'В процессе',
-                isOnline: true,
-                isParticipant: isParticipant,
-                playerId: myRoom?.playerId,
-                playerColor: myRoom?.playerColor,
-                canJoin: roomData.status === 'waiting' && !isParticipant
-            });
-        }
-        
-        return onlineRooms;
-    } catch (error) {
-        console.error('Ошибка получения онлайн-комнат:', error);
-        return [];
-    }
+    savedRooms.forEach(room => {
+        onlineRooms.push({
+            id: `online_${room.roomCode}`,
+            roomCode: room.roomCode,
+            name: room.matchName || `Партия ${room.roomCode.substring(0, 6)}`,
+            color: room.color || '#00d4ff',
+            status: 'В процессе',
+            isOnline: true,
+            isParticipant: true,
+            playerId: room.playerId,
+            playerColor: room.playerColor,
+            canJoin: false
+        });
+    });
+    
+    return onlineRooms;
 }
 
 // Сохранение информации об участии в онлайн-комнате
