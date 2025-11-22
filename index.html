@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Шахматы - Chess Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>♔ Шахматы ♔</h1>
+            <p class="subtitle">Классическая игра в шахматы</p>
+        </header>
+
+        <main>
+            <div class="game-section">
+                <div class="board-container">
+                    <div id="chessboard"></div>
+                </div>
+                
+                <div class="controls">
+                    <div class="game-info">
+                        <h2>Информация об игре</h2>
+                        <p><strong>Текущий ход:</strong> <span id="current-player">Белые</span></p>
+                        <p><strong>Статус:</strong> <span id="game-status">Игра началась</span></p>
+                    </div>
+                    
+                    <div class="buttons">
+                        <button id="new-game" class="btn btn-primary">Новая игра</button>
+                        <button id="reset-game" class="btn btn-secondary">Сброс</button>
+                    </div>
+
+                    <div class="moves-history">
+                        <h3>История ходов</h3>
+                        <div id="moves-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <section class="about">
+                <h2>О проекте</h2>
+                <p>Добро пожаловать в нашу шахматную игру! Это веб-приложение позволяет играть в классические шахматы прямо в браузере.</p>
+                
+                <div class="features">
+                    <div class="feature">
+                        <h3>♟️ Правила игры</h3>
+                        <p>Следуйте традиционным правилам шахмат</p>
+                    </div>
+                    <div class="feature">
+                        <h3>🎮 Простой интерфейс</h3>
+                        <p>Интуитивное управление и красивый дизайн</p>
+                    </div>
+                    <div class="feature">
+                        <h3>📱 Адаптивность</h3>
+                        <p>Играйте на любом устройстве</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 Chess Game. Все права защищены.</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
