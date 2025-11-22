@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Глобальный синхронизованный квадрат</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body {
             margin: 0;
@@ -89,8 +90,8 @@
     </div>
 
     <div class="info">
-        <p>Кликайте на квадрат - изменения синхронизируются между вкладками!</p>
-        <p><small>Работает через localStorage и BroadcastChannel</small></p>
+        <p>Кликайте на квадрат - изменения синхронизируются между ВСЕМИ устройствами!</p>
+        <p><small>Работает через PeerJS с публичным сервером</small></p>
     </div>
 
     <div id="square" onclick="toggleSquare()">
@@ -101,6 +102,9 @@
 
     <script>
         let isGreen = false;
+        let peer = null;
+        let connections = [];
+        const BROADCAST_ID = 'chess-global-square-2024'; // Фиксированный ID для всех
 
         function log(message) {
             const logDiv = document.getElementById('log');
@@ -112,63 +116,123 @@
             console.log(message);
         }
 
-        // Используем localStorage + BroadcastChannel для синхронизации между вкладками
-        // Для межустройственной синхронизации используем простой REST API
-        const SYNC_KEY = 'global_square_state';
-        const API_URL = 'https://jsonplaceholder.typicode.com/posts/1'; // Тестовый API
+        function initPeer() {
+            const myId = BROADCAST_ID + '-' + Math.random().toString(36).substr(2, 9);
+            
+            peer = new Peer(myId, {
+                host: '0.peerjs.com',
+                port: 443,
+                secure: true,
+                debug: 0
+            });
 
-        async function loadState() {
-            try {
-                log('🔄 Загрузка состояния...');
-                
-                // Пробуем загрузить из localStorage
-                const saved = localStorage.getItem(SYNC_KEY);
-                if (saved) {
-                    try {
-                        const data = JSON.parse(saved);
-                        isGreen = data.isGreen || false;
-                        updateSquare(false);
-                        log('✅ Загружено из localStorage: ' + (isGreen ? 'зелёный' : 'красный'));
-                    } catch (e) {
-                        log('⚠️ Ошибка парсинга localStorage');
-                    }
-                }
-                
+            peer.on('open', (id) => {
+                log('✅ Подключено к серверу: ' + id);
                 document.getElementById('status').textContent = 'Подключено ✅';
                 document.getElementById('status').style.borderColor = '#0f0';
-                log('✅ Готово к работе');
-            } catch (error) {
-                log('❌ Ошибка: ' + error.message);
-                document.getElementById('status').textContent = 'Работает локально';
-                document.getElementById('status').style.borderColor = '#ff0';
-            }
+                
+                // Пытаемся подключиться к главному узлу
+                connectToMaster();
+            });
+
+            peer.on('connection', (conn) => {
+                log('📥 Входящее подключение от ' + conn.peer.substring(0, 20) + '...');
+                setupConnection(conn);
+            });
+
+            peer.on('error', (err) => {
+                log('❌ Ошибка: ' + err.message);
+                document.getElementById('status').textContent = 'Ошибка подключения';
+                document.getElementById('status').style.borderColor = '#f00';
+            });
         }
 
-        function saveState() {
-            try {
-                const data = {
-                    isGreen: isGreen,
-                    timestamp: Date.now()
-                };
-                localStorage.setItem(SYNC_KEY, JSON.stringify(data));
-                
-                // Отправляем событие для синхронизации между вкладками
-                if (typeof BroadcastChannel !== 'undefined') {
-                    const channel = new BroadcastChannel('square-sync');
-                    channel.postMessage(data);
-                    channel.close();
+        function connectToMaster() {
+            // Пытаемся подключиться к мастер-узлу
+            const masterConn = peer.connect(BROADCAST_ID);
+            
+            masterConn.on('open', () => {
+                log('✅ Подключено к главному узлу');
+                setupConnection(masterConn);
+                // Запрашиваем текущее состояние
+                masterConn.send({ type: 'request-state' });
+            });
+
+            masterConn.on('error', (err) => {
+                log('⚠️ Главный узел недоступен, становлюсь главным');
+                // Если не можем подключиться, становимся главным узлом
+                becomeMaster();
+            });
+        }
+
+        function becomeMaster() {
+            // Переподключаемся с фиксированным ID
+            if (peer) peer.destroy();
+            
+            peer = new Peer(BROADCAST_ID, {
+                host: '0.peerjs.com',
+                port: 443,
+                secure: true,
+                debug: 0
+            });
+
+            peer.on('open', (id) => {
+                log('👑 Я главный узел: ' + id);
+                document.getElementById('status').textContent = 'Подключено (главный) ✅';
+                document.getElementById('status').style.borderColor = '#0f0';
+            });
+
+            peer.on('connection', (conn) => {
+                log('📥 Новое подключение от ' + conn.peer.substring(0, 20) + '...');
+                setupConnection(conn);
+            });
+
+            peer.on('error', (err) => {
+                if (err.type === 'unavailable-id') {
+                    log('⚠️ Главный узел уже существует, подключаюсь...');
+                    setTimeout(connectToMaster, 1000);
+                } else {
+                    log('❌ Ошибка: ' + err.message);
                 }
-                
-                log('💾 Состояние сохранено: ' + (isGreen ? 'зелёный' : 'красный'));
-            } catch (error) {
-                log('❌ Ошибка сохранения: ' + error.message);
-            }
+            });
+        }
+
+        function setupConnection(conn) {
+            connections.push(conn);
+
+            conn.on('data', (data) => {
+                if (data.type === 'state') {
+                    if (data.isGreen !== isGreen) {
+                        isGreen = data.isGreen;
+                        updateSquare(false);
+                        log('📥 Получено обновление: ' + (isGreen ? 'зелёный' : 'красный'));
+                    }
+                } else if (data.type === 'request-state') {
+                    // Отправляем текущее состояние
+                    conn.send({ type: 'state', isGreen: isGreen });
+                }
+            });
+
+            conn.on('close', () => {
+                connections = connections.filter(c => c !== conn);
+                log('📤 Отключение');
+            });
+        }
+
+        function broadcastState() {
+            const data = { type: 'state', isGreen: isGreen };
+            connections.forEach(conn => {
+                if (conn.open) {
+                    conn.send(data);
+                }
+            });
+            log('📤 Отправлено ' + connections.length + ' устройствам');
         }
 
         function toggleSquare() {
             isGreen = !isGreen;
             updateSquare(true);
-            saveState();
+            broadcastState();
         }
 
         function updateSquare(notify = true) {
@@ -181,27 +245,10 @@
             }
         }
 
-        // Слушаем обновления от других вкладок
-        function startListening() {
-            if (typeof BroadcastChannel !== 'undefined') {
-                const channel = new BroadcastChannel('square-sync');
-                channel.onmessage = (event) => {
-                    if (event.data && event.data.isGreen !== undefined) {
-                        isGreen = event.data.isGreen;
-                        updateSquare(false);
-                        log('📥 Обновление от другой вкладки: ' + (isGreen ? 'зелёный' : 'красный'));
-                    }
-                };
-                log('👂 Слушаем обновления от других вкладок');
-            }
-        }
-
-        // Инициализация
-        window.addEventListener('load', async () => {
+        window.addEventListener('load', () => {
             log('🚀 Страница загружена');
-            await loadState();
-            startListening();
-            log('✨ Все готово! Кликайте на квадрат');
+            initPeer();
+            log('✨ Инициализация P2P...');
         });
     </script>
 </body>
